@@ -1,0 +1,1085 @@
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Notepad Sharelink</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    Oxygen, Ubuntu, sans-serif;
+                background: #f0f2f5;
+                min-height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 20px;
+            }
+
+            .container {
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+                padding: 32px;
+                max-width: 640px;
+                width: 100%;
+            }
+
+            h1 {
+                font-size: 24px;
+                font-weight: 600;
+                color: #1a1a1a;
+                margin-bottom: 8px;
+            }
+
+            .subtitle {
+                color: #666;
+                font-size: 14px;
+                margin-bottom: 24px;
+            }
+
+            .mode-selector {
+                display: flex;
+                gap: 12px;
+                margin-bottom: 20px;
+            }
+
+            .mode-btn {
+                flex: 1;
+                padding: 10px;
+                border: 2px solid #e0e0e0;
+                border-radius: 8px;
+                background: white;
+                cursor: pointer;
+                font-weight: 500;
+                transition: all 0.2s;
+                color: #666;
+            }
+
+            .mode-btn:hover {
+                border-color: #999;
+            }
+
+            .mode-btn.active {
+                border-color: #0066ff;
+                background: #f0f5ff;
+                color: #0066ff;
+            }
+
+            .mode-btn.public.active {
+                border-color: #00a86b;
+                background: #f0faf5;
+                color: #00a86b;
+            }
+
+            .mode-btn.private.active {
+                border-color: #7c3aed;
+                background: #f5f0ff;
+                color: #7c3aed;
+            }
+
+            .form-group {
+                margin-bottom: 16px;
+            }
+
+            label {
+                display: block;
+                font-size: 14px;
+                font-weight: 500;
+                color: #333;
+                margin-bottom: 4px;
+            }
+
+            textarea {
+                width: 100%;
+                padding: 12px;
+                border: 1px solid #d0d0d0;
+                border-radius: 8px;
+                font-size: 14px;
+                font-family: inherit;
+                resize: vertical;
+                min-height: 150px;
+                transition: border-color 0.2s;
+            }
+
+            textarea:focus {
+                outline: none;
+                border-color: #0066ff;
+            }
+
+            input[type="password"] {
+                width: 100%;
+                padding: 10px 12px;
+                border: 1px solid #d0d0d0;
+                border-radius: 8px;
+                font-size: 14px;
+                transition: border-color 0.2s;
+            }
+
+            input[type="password"]:focus {
+                outline: none;
+                border-color: #0066ff;
+            }
+
+            input[type="text"] {
+                width: 100%;
+                padding: 10px 12px;
+                border: 1px solid #d0d0d0;
+                border-radius: 8px;
+                font-size: 14px;
+                transition: border-color 0.2s;
+            }
+
+            input[type="text"]:focus {
+                outline: none;
+                border-color: #0066ff;
+            }
+
+            .password-field {
+                display: none;
+            }
+
+            .password-field.visible {
+                display: block;
+            }
+
+            .btn {
+                padding: 10px 24px;
+                border: none;
+                border-radius: 8px;
+                font-weight: 500;
+                font-size: 14px;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .btn-primary {
+                background: #0066ff;
+                color: white;
+            }
+
+            .btn-primary:hover {
+                background: #0052cc;
+            }
+
+            .btn-primary:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+            .btn-success {
+                background: #00a86b;
+                color: white;
+            }
+
+            .btn-success:hover {
+                background: #008f59;
+            }
+
+            .btn-danger {
+                background: #dc2626;
+                color: white;
+            }
+
+            .btn-danger:hover {
+                background: #b91c1c;
+            }
+
+            .btn-secondary {
+                background: #e0e0e0;
+                color: #333;
+            }
+
+            .btn-secondary:hover {
+                background: #d0d0d0;
+            }
+
+            .btn-group {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+
+            .result-area {
+                margin-top: 24px;
+                padding-top: 20px;
+                border-top: 1px solid #e0e0e0;
+            }
+
+            .result-box {
+                background: #f8f9fa;
+                border-radius: 8px;
+                padding: 16px;
+                margin-top: 8px;
+            }
+
+            .result-box .label {
+                font-size: 12px;
+                font-weight: 600;
+                color: #666;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .result-box .value {
+                margin-top: 4px;
+                word-break: break-all;
+                font-family: "Courier New", monospace;
+                font-size: 14px;
+            }
+
+            .result-box .value.url {
+                color: #0066ff;
+                cursor: pointer;
+            }
+
+            .result-box .value.url:hover {
+                text-decoration: underline;
+            }
+
+            .note-content {
+                background: #f8f9fa;
+                border-radius: 8px;
+                padding: 16px;
+                white-space: pre-wrap;
+                font-size: 14px;
+                line-height: 1.6;
+                max-height: 400px;
+                overflow-y: auto;
+            }
+
+            .locked-message {
+                text-align: center;
+                padding: 24px;
+                color: #666;
+            }
+
+            .locked-message .lock-icon {
+                font-size: 32px;
+                display: block;
+                margin-bottom: 8px;
+            }
+
+            .toast {
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #333;
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-size: 14px;
+                opacity: 0;
+                transition: opacity 0.3s;
+                z-index: 1000;
+                pointer-events: none;
+            }
+
+            .toast.show {
+                opacity: 1;
+            }
+
+            .toast.error {
+                background: #dc2626;
+            }
+
+            .toast.success {
+                background: #00a86b;
+            }
+
+            .loading {
+                opacity: 0.6;
+                pointer-events: none;
+            }
+
+            .view-mode {
+                margin-top: 16px;
+            }
+
+            .view-mode .note-actions {
+                display: flex;
+                gap: 8px;
+                margin-top: 12px;
+            }
+
+            .inline-flex {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+            }
+
+            .hidden {
+                display: none !important;
+            }
+
+            .badge {
+                display: inline-block;
+                padding: 2px 10px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: 500;
+            }
+
+            .badge.public {
+                background: #e0f5ec;
+                color: #00a86b;
+            }
+
+            .badge.private {
+                background: #ede9fe;
+                color: #7c3aed;
+            }
+
+            .share-info {
+                display: flex;
+                gap: 12px;
+                align-items: center;
+                margin-top: 8px;
+                flex-wrap: wrap;
+            }
+
+            .nav-bar {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 16px;
+                flex-wrap: wrap;
+            }
+
+            .note-list {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .note-list-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 16px;
+                background: #f8f9fa;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+
+            .note-list-item:hover {
+                background: #e8eaed;
+            }
+
+            .note-list-item .note-title {
+                font-weight: 500;
+                font-size: 14px;
+                color: #333;
+            }
+
+            .note-list-item .note-meta {
+                font-size: 12px;
+                color: #999;
+            }
+
+            .pagination {
+                display: flex;
+                gap: 8px;
+                justify-content: center;
+                margin-top: 16px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container" id="app">
+            <h1>📝 Notepad Sharelink</h1>
+            <p class="subtitle">Buat catatan yang bisa dibagikan lewat link</p>
+
+            <!-- CREATE MODE -->
+            <div id="createMode">
+                <div class="mode-selector">
+                    <button
+                        class="mode-btn public active"
+                        data-mode="public"
+                        onclick="setMode('public')"
+                    >
+                        🌍 Public
+                    </button>
+                    <button
+                        class="mode-btn private"
+                        data-mode="private"
+                        onclick="setMode('private')"
+                    >
+                        🔒 Private
+                    </button>
+                </div>
+
+                <div class="form-group">
+                    <label for="title">Judul</label>
+                    <input
+                        type="text"
+                        id="title"
+                        placeholder="Judul catatan (opsional)"
+                        maxlength="200"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="content">Isi catatan</label>
+                    <textarea
+                        id="content"
+                        placeholder="Tulis catatanmu di sini..."
+                    ></textarea>
+                </div>
+
+                <div class="form-group password-field" id="passwordField">
+                    <label for="password">Password</label>
+                    <input
+                        type="password"
+                        id="password"
+                        placeholder="Masukkan password"
+                    />
+                </div>
+
+                <button
+                    class="btn btn-primary"
+                    id="createBtn"
+                    onclick="createNote()"
+                >
+                    ✨ Buat Catatan
+                </button>
+
+                <div style="margin-top: 12px">
+                    <button class="btn btn-secondary" onclick="showList()">
+                        📋 Daftar Catatan
+                    </button>
+                </div>
+            </div>
+
+            <!-- LIST MODE -->
+            <div id="listMode" class="hidden">
+                <div class="nav-bar">
+                    <button class="btn btn-secondary" onclick="showCreate()">
+                        📝 Buat Catatan
+                    </button>
+                </div>
+                <h3 style="margin-bottom: 12px">📋 Daftar Catatan</h3>
+                <div id="listContent">
+                    <div class="result-box">
+                        <div class="label">⏳ Memuat...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW MODE -->
+            <div id="viewMode" class="hidden">
+                <div id="viewContent">
+                    <!-- Will be filled by JS -->
+                </div>
+            </div>
+
+            <!-- Result area for create -->
+            <div id="resultArea" class="result-area hidden">
+                <div id="resultContent"></div>
+            </div>
+        </div>
+
+        <!-- Toast notification -->
+        <div id="toast" class="toast"></div>
+
+        <script>
+            const API_BASE = "/api/notes";
+            let currentMode = "public";
+            let currentNoteId = null;
+
+            // --- Toast ---
+            function showToast(message, type = "success") {
+                const toast = document.getElementById("toast");
+                toast.textContent = message;
+                toast.className = "toast " + type + " show";
+                clearTimeout(toast._timeout);
+                toast._timeout = setTimeout(() => {
+                    toast.classList.remove("show");
+                }, 3000);
+            }
+
+            // --- Mode selector ---
+            function setMode(mode) {
+                currentMode = mode;
+                document.querySelectorAll(".mode-btn").forEach((btn) => {
+                    btn.classList.toggle("active", btn.dataset.mode === mode);
+                });
+                const pwdField = document.getElementById("passwordField");
+                pwdField.classList.toggle("visible", mode === "private");
+            }
+
+            // --- Create note ---
+            async function createNote() {
+                const title = document.getElementById("title").value.trim();
+                const content = document.getElementById("content").value.trim();
+                if (!content) {
+                    showToast("Isi catatan tidak boleh kosong", "error");
+                    return;
+                }
+
+                const payload = {
+                    mode: currentMode,
+                    title: title || "Catatan tanpa judul",
+                    content: content,
+                };
+
+                if (currentMode === "private") {
+                    const password = document.getElementById("password").value;
+                    if (!password || password.length < 4) {
+                        showToast("Password minimal 4 karakter", "error");
+                        return;
+                    }
+                    payload.password = password;
+                }
+
+                const btn = document.getElementById("createBtn");
+                btn.disabled = true;
+                btn.textContent = "\u23F3 Menyimpan...";
+
+                try {
+                    const response = await fetch(API_BASE, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || "Gagal membuat catatan");
+                    }
+
+                    // Show result
+                    const resultArea = document.getElementById("resultArea");
+                    const resultContent =
+                        document.getElementById("resultContent");
+                    resultArea.classList.remove("hidden");
+
+                    const shareUrl = window.location.origin + data.share_url;
+                    resultContent.innerHTML = `
+                    <div class="result-box">
+                        <div class="label">\u2705 Catatan berhasil dibuat!</div>
+                        <div class="share-info">
+                            <span class="badge ${data.mode}">${data.mode === "public" ? "\U0001F30D Public" : "\U0001F512 Private"}</span>
+                            <span style="font-size:13px;color:#666;">ID: ${data.id}</span>
+                        </div>
+                        <div style="margin-top:8px;">
+                            <div class="label" style="font-size:14px;text-transform:none;">${escapeHtml(data.title)}</div>
+                        </div>
+                        <div style="margin-top:8px;">
+                            <div class="label">\U0001F517 Link bagikan</div>
+                            <div class="value url" onclick="copyToClipboard('${shareUrl}')">${shareUrl}</div>
+                        </div>
+                        <div style="margin-top:12px;">
+                            <button class="btn btn-secondary" onclick="viewNote('${data.id}')">\U0001F441\uFE0F Lihat catatan</button>
+                            <button class="btn btn-secondary" onclick="clearCreateForm()">\U0001F4DD Buat baru</button>
+                        </div>
+                    </div>
+                `;
+
+                    document.getElementById("title").value = "";
+                    document.getElementById("content").value = "";
+                    if (currentMode === "private") {
+                        document.getElementById("password").value = "";
+                    }
+
+                    showToast("Catatan berhasil dibuat!", "success");
+                } catch (err) {
+                    showToast(err.message, "error");
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = "\u2728 Buat Catatan";
+                }
+            }
+
+            // --- View note ---
+            async function viewNote(id) {
+                currentNoteId = id;
+                document.getElementById("createMode").classList.add("hidden");
+                document.getElementById("listMode").classList.add("hidden");
+                document.getElementById("resultArea").classList.add("hidden");
+                document.getElementById("viewMode").classList.remove("hidden");
+
+                const viewContent = document.getElementById("viewContent");
+                viewContent.innerHTML = `
+                <div class="result-box">
+                    <div class="label">\u23F3 Memuat catatan...</div>
+                </div>
+            `;
+
+                try {
+                    const response = await fetch(`${API_BASE}/${id}`);
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || "Gagal memuat catatan");
+                    }
+
+                    if (data.locked) {
+                        // Private note, need password
+                        viewContent.innerHTML = `
+                        <div class="result-box">
+                            <div class="locked-message">
+                                <span class="lock-icon">\U0001F512</span>
+                                <strong>Catatan ini dilindungi password</strong>
+                                <p style="margin-top:4px;font-size:13px;color:#666;">${escapeHtml(data.title)}</p>
+                                <p style="margin-top:8px;font-size:13px;color:#666;">Masukkan password untuk melihat isinya</p>
+                            </div>
+                            <div class="form-group" style="margin-top:12px;">
+                                <input type="password" id="unlockPassword" placeholder="Masukkan password" style="width:100%;padding:10px 12px;border:1px solid #d0d0d0;border-radius:8px;font-size:14px;" />
+                            </div>
+                            <button class="btn btn-primary" onclick="unlockNote('${id}')">\U0001F513 Buka</button>
+                            <button class="btn btn-secondary" onclick="showCreate()" style="margin-left:8px;">\u2190 Kembali</button>
+                        </div>
+                    `;
+                        return;
+                    }
+
+                    // Public note or already unlocked
+                    renderNoteContent(data);
+                } catch (err) {
+                    viewContent.innerHTML = `
+                    <div class="result-box">
+                        <div style="color:#dc2626;">\u274C ${err.message}</div>
+                        <button class="btn btn-secondary" onclick="showCreate()" style="margin-top:12px;">\u2190 Kembali</button>
+                    </div>
+                `;
+                    showToast(err.message, "error");
+                }
+            }
+
+            // --- Unlock private note ---
+            async function unlockNote(id) {
+                const password =
+                    document.getElementById("unlockPassword").value;
+                if (!password) {
+                    showToast("Masukkan password", "error");
+                    return;
+                }
+
+                const viewContent = document.getElementById("viewContent");
+                viewContent.innerHTML = `
+                <div class="result-box">
+                    <div class="label">\u23F3 Memverifikasi...</div>
+                </div>
+            `;
+
+                try {
+                    const response = await fetch(`${API_BASE}/${id}/unlock`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ password }),
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || "Password salah");
+                    }
+
+                    // Unlock now returns title + content directly
+                    renderNoteContent(data);
+                    showToast("\U0001F513 Catatan terbuka!", "success");
+                } catch (err) {
+                    viewContent.innerHTML = `
+                    <div class="result-box">
+                        <div style="color:#dc2626;">\u274C ${err.message}</div>
+                        <div class="form-group" style="margin-top:12px;">
+                            <input type="password" id="unlockPassword" placeholder="Masukkan password" style="width:100%;padding:10px 12px;border:1px solid #d0d0d0;border-radius:8px;font-size:14px;" />
+                        </div>
+                        <button class="btn btn-primary" onclick="unlockNote('${id}')">\U0001F513 Buka</button>
+                        <button class="btn btn-secondary" onclick="showCreate()" style="margin-left:8px;">\u2190 Kembali</button>
+                    </div>
+                `;
+                    showToast(err.message, "error");
+                }
+            }
+
+            // --- Render note content ---
+            function renderNoteContent(data) {
+                const viewContent = document.getElementById("viewContent");
+
+                const isPublic = data.mode === "public";
+                const badge = isPublic
+                    ? '<span class="badge public">\U0001F30D Public</span>'
+                    : '<span class="badge private">\U0001F512 Private</span>';
+
+                viewContent.innerHTML = `
+                <div class="result-box">
+                    <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px;">
+                        <div>
+                            <div class="label">\U0001F4C4 ${escapeHtml(data.title)}</div>
+                            <div style="font-size:13px;color:#666;margin-top:2px;">
+                                ${badge} \u00B7 ID: ${data.id}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="note-content" style="margin-top:12px;">${escapeHtml(data.content)}</div>
+                    <div class="note-actions">
+                        <button class="btn btn-secondary" onclick="editNote('${data.id}')">\u270F\uFE0F Edit</button>
+                        <button class="btn btn-danger" onclick="deleteNote('${data.id}')">\U0001F5D1\uFE0F Hapus</button>
+                        <button class="btn btn-secondary" onclick="showCreate()">\u2190 Kembali</button>
+                    </div>
+                </div>
+            `;
+            }
+
+            // --- Edit note ---
+            async function editNote(id) {
+                // Switch to edit mode inline
+                const viewContent = document.getElementById("viewContent");
+
+                // Get current content first
+                try {
+                    const response = await fetch(`${API_BASE}/${id}`);
+                    const data = await response.json();
+
+                    if (data.locked) {
+                        showToast(
+                            "Catatan terkunci, buka dulu untuk mengedit",
+                            "error",
+                        );
+                        return;
+                    }
+
+                    const isPrivate = data.mode === "private";
+
+                    viewContent.innerHTML = `
+                    <div class="result-box">
+                        <div class="label">\u270F\uFE0F Edit catatan</div>
+                        <div class="form-group" style="margin-top:12px;">
+                            <label style="font-size:13px;">Judul</label>
+                            <input type="text" id="editTitle" value="${escapeHtml(data.title)}" maxlength="200" style="width:100%;padding:10px 12px;border:1px solid #d0d0d0;border-radius:8px;font-size:14px;" />
+                        </div>
+                        <div class="form-group" style="margin-top:12px;">
+                            <textarea id="editContent" style="min-height:150px;">${escapeHtml(data.content)}</textarea>
+                        </div>
+                        ${
+                            isPrivate
+                                ? `
+                            <div class="form-group password-field visible">
+                                <label for="editPassword">Password (untuk verifikasi)</label>
+                                <input type="password" id="editPassword" placeholder="Masukkan password" />
+                            </div>
+                        `
+                                : ""
+                        }
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="saveEdit('${id}')">\U0001F4BE Simpan</button>
+                            <button class="btn btn-secondary" onclick="viewNote('${id}')">\u21A9\uFE0F Batal</button>
+                        </div>
+                    </div>
+                `;
+                } catch (err) {
+                    showToast(err.message, "error");
+                }
+            }
+
+            // --- Save edit ---
+            async function saveEdit(id) {
+                const title = document.getElementById("editTitle").value.trim();
+                const content = document
+                    .getElementById("editContent")
+                    .value.trim();
+                if (!content) {
+                    showToast("Isi catatan tidak boleh kosong", "error");
+                    return;
+                }
+
+                const payload = {
+                    title: title || "Catatan tanpa judul",
+                    content,
+                };
+                const passwordInput = document.getElementById("editPassword");
+                if (passwordInput) {
+                    const password = passwordInput.value;
+                    if (!password) {
+                        showToast(
+                            "Masukkan password untuk verifikasi",
+                            "error",
+                        );
+                        return;
+                    }
+                    payload.password = password;
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE}/${id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error || "Gagal mengupdate catatan",
+                        );
+                    }
+
+                    showToast("\u2705 Catatan berhasil diupdate!", "success");
+                    viewNote(id);
+                } catch (err) {
+                    showToast(err.message, "error");
+                }
+            }
+
+            // --- Delete note ---
+            async function deleteNote(id) {
+                const confirmed = confirm("Yakin ingin menghapus catatan ini?");
+
+                if (!confirmed) return;
+
+                let password = null;
+                // Check if private
+                try {
+                    const response = await fetch(`${API_BASE}/${id}`);
+                    const data = await response.json();
+
+                    if (data.locked || data.mode === "private") {
+                        password = prompt("Masukkan password untuk menghapus:");
+                        if (password === null) return;
+                        if (!password) {
+                            showToast(
+                                "Password diperlukan untuk menghapus",
+                                "error",
+                            );
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    showToast(err.message, "error");
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE}/${id}`, {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(password ? { password } : {}),
+                    });
+
+                    if (!response.ok) {
+                        const data = await response.json();
+                        throw new Error(
+                            data.error || "Gagal menghapus catatan",
+                        );
+                    }
+
+                    showToast(
+                        "\U0001F5D1\uFE0F Catatan berhasil dihapus",
+                        "success",
+                    );
+                    showCreate();
+                } catch (err) {
+                    showToast(err.message, "error");
+                }
+            }
+
+            // --- List notes ---
+            let listOffset = 0;
+            const listLimit = 20;
+
+            async function showList() {
+                listOffset = 0;
+                document.getElementById("createMode").classList.add("hidden");
+                document.getElementById("viewMode").classList.add("hidden");
+                document.getElementById("resultArea").classList.add("hidden");
+                document.getElementById("listMode").classList.remove("hidden");
+                await fetchList();
+            }
+
+            async function fetchList() {
+                const listContent = document.getElementById("listContent");
+                listContent.innerHTML = `
+                    <div class="result-box">
+                        <div class="label">\u23F3 Memuat...</div>
+                    </div>
+                `;
+
+                try {
+                    const response = await fetch(
+                        `${API_BASE}?limit=${listLimit}&offset=${listOffset}`,
+                    );
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || "Gagal memuat daftar");
+                    }
+
+                    const notes = data.notes;
+
+                    if (notes.length === 0) {
+                        listContent.innerHTML = `
+                            <div class="result-box">
+                                <div style="text-align:center;color:#999;">Belum ada catatan.</div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    let html = '<div class="note-list">';
+                    for (const note of notes) {
+                        const badge =
+                            note.mode === "public"
+                                ? '<span class="badge public">\U0001F30D Public</span>'
+                                : '<span class="badge private">\U0001F512 Private</span>';
+                        const date = new Date(
+                            note.created_at,
+                        ).toLocaleDateString("id-ID", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                        });
+                        html += `
+                            <div class="note-list-item" onclick="viewNote('${note.id}')">
+                                <div>
+                                    <div class="note-title">${escapeHtml(note.title)}</div>
+                                    <div class="note-meta">${badge} \u00B7 ${date}</div>
+                                </div>
+                                <span style="color:#999;">\u203A</span>
+                            </div>
+                        `;
+                    }
+                    html += "</div>";
+
+                    // Pagination
+                    if (listOffset > 0 || notes.length >= listLimit) {
+                        html += '<div class="pagination">';
+                        if (listOffset > 0) {
+                            html += `<button class="btn btn-secondary" onclick="prevPage()">\u2190 Sebelumnya</button>`;
+                        }
+                        if (notes.length >= listLimit) {
+                            html += `<button class="btn btn-secondary" onclick="nextPage()">Selanjutnya \u2192</button>`;
+                        }
+                        html += "</div>";
+                    }
+
+                    listContent.innerHTML = html;
+                } catch (err) {
+                    listContent.innerHTML = `
+                        <div class="result-box">
+                            <div style="color:#dc2626;">\u274C ${err.message}</div>
+                        </div>
+                    `;
+                    showToast(err.message, "error");
+                }
+            }
+
+            function nextPage() {
+                listOffset += listLimit;
+                fetchList();
+            }
+
+            function prevPage() {
+                listOffset = Math.max(0, listOffset - listLimit);
+                fetchList();
+            }
+
+            // --- Utility functions ---
+            function escapeHtml(text) {
+                const div = document.createElement("div");
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function copyToClipboard(text) {
+                if (navigator.clipboard) {
+                    navigator.clipboard
+                        .writeText(text)
+                        .then(() => {
+                            showToast(
+                                "\U0001F4CB Link disalin ke clipboard!",
+                                "success",
+                            );
+                        })
+                        .catch(() => {
+                            fallbackCopy(text);
+                        });
+                } else {
+                    fallbackCopy(text);
+                }
+            }
+
+            function fallbackCopy(text) {
+                const input = document.createElement("input");
+                input.value = text;
+                document.body.appendChild(input);
+                input.select();
+                try {
+                    document.execCommand("copy");
+                    showToast(
+                        "\U0001F4CB Link disalin ke clipboard!",
+                        "success",
+                    );
+                } catch (e) {
+                    showToast("Gagal menyalin, silakan salin manual", "error");
+                }
+                document.body.removeChild(input);
+            }
+
+            function clearCreateForm() {
+                document.getElementById("title").value = "";
+                document.getElementById("content").value = "";
+                document.getElementById("password").value = "";
+                document.getElementById("resultArea").classList.add("hidden");
+                document.getElementById("resultContent").innerHTML = "";
+                showCreate();
+            }
+
+            function showCreate() {
+                document
+                    .getElementById("createMode")
+                    .classList.remove("hidden");
+                document.getElementById("listMode").classList.add("hidden");
+                document.getElementById("viewMode").classList.add("hidden");
+                document.getElementById("resultArea").classList.add("hidden");
+                currentNoteId = null;
+            }
+
+            // --- Handle URL params for direct share link ---
+            function handleShareLink() {
+                const path = window.location.pathname;
+                const match = path.match(/^\/n\/([a-zA-Z0-9]+)/);
+                if (match) {
+                    const id = match[1];
+                    // Switch to view mode
+                    document
+                        .getElementById("createMode")
+                        .classList.add("hidden");
+                    document
+                        .getElementById("viewMode")
+                        .classList.remove("hidden");
+                    viewNote(id);
+                }
+            }
+
+            // --- Init ---
+            document.addEventListener("DOMContentLoaded", () => {
+                setMode("public");
+                handleShareLink();
+
+                // Keyboard shortcut: Ctrl+Enter to create note
+                document
+                    .getElementById("content")
+                    .addEventListener("keydown", (e) => {
+                        if (e.ctrlKey && e.key === "Enter") {
+                            e.preventDefault();
+                            createNote();
+                        }
+                    });
+            });
+        </script>
+    </body>
+</html>
