@@ -54,6 +54,9 @@ func NewNoteService(q *sqlc.Queries) *NoteService {
 // terlihat di daftar catatan dan saat share link.
 // Content: plaintext untuk public, dienkripsi (AES-256-GCM) untuk private.
 func (s *NoteService) CreateNote(ctx context.Context, mode, title, content, password string) (string, error) {
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
 	if mode != ModePublic && mode != ModePrivate {
 		return "", ErrInvalidMode
 	}
@@ -62,11 +65,17 @@ func (s *NoteService) CreateNote(ctx context.Context, mode, title, content, pass
 		return "", ErrTitleTooLong
 	}
 
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+
 	id, err := idgen.New()
 	if err != nil {
 		return "", err
 	}
-
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
 	var (
 		storedContent []byte
 		salt          []byte
@@ -93,7 +102,9 @@ func (s *NoteService) CreateNote(ctx context.Context, mode, title, content, pass
 			return "", err
 		}
 	}
-
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
 	_, err = s.q.CreateNote(ctx, sqlc.CreateNoteParams{
 		ID:      id,
 		Mode:    mode,
@@ -113,6 +124,9 @@ func (s *NoteService) CreateNote(ctx context.Context, mode, title, content, pass
 // UnlockPrivateNote dengan password yang benar.
 // Title selalu dikembalikan (plaintext) untuk semua mode.
 func (s *NoteService) GetNoteMeta(ctx context.Context, id string) (mode string, title string, content string, err error) {
+	if ctx.Err() != nil {
+		return "", "", "", ctx.Err()
+	}
 	n, err := s.q.GetNote(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -131,6 +145,9 @@ func (s *NoteService) GetNoteMeta(ctx context.Context, id string) (mode string, 
 // (hasil dekripsi content) jika password benar.
 // Title langsung dikembalikan sebagai plaintext (tidak perlu didekripsi).
 func (s *NoteService) UnlockPrivateNote(ctx context.Context, id, password string) (title string, content string, err error) {
+	if ctx.Err() != nil {
+		return "", "", ctx.Err()
+	}
 	n, err := s.q.GetNote(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -157,6 +174,10 @@ func (s *NoteService) UnlockPrivateNote(ctx context.Context, id, password string
 // wajib dikirim dan akan diverifikasi terlebih dahulu (dengan mencoba dekripsi
 // content lama) sebelum content baru dienkripsi ulang dan disimpan.
 func (s *NoteService) UpdateNote(ctx context.Context, id, title, content, password string) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
 	if len(title) > 200 {
 		return ErrTitleTooLong
 	}
@@ -204,6 +225,10 @@ func (s *NoteService) UpdateNote(ctx context.Context, id, title, content, passwo
 // DeleteNote menghapus note. Untuk mode private, password wajib diverifikasi
 // terlebih dahulu sebelum penghapusan dieksekusi.
 func (s *NoteService) DeleteNote(ctx context.Context, id, password string) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
 	n, err := s.q.GetNote(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -238,6 +263,10 @@ func (s *NoteService) DeleteNote(ctx context.Context, id, password string) error
 // Title langsung dikembalikan apa adanya karena disimpan sebagai plaintext
 // untuk semua mode.
 func (s *NoteService) ListNotes(ctx context.Context, limit, offset int32) ([]NoteSummary, error) {
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
 	rows, err := s.q.ListNotes(ctx, sqlc.ListNotesParams{
 		Limit:  limit,
 		Offset: offset,

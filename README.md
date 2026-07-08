@@ -39,6 +39,7 @@ notepad-sharelink/
 
 ### 1. Siapkan database Neon
 
+
 1. Buat project di [neon.tech](https://neon.tech), catat connection string-nya.
 2. Jalankan isi `internal/db/migrations/001_create_notes.sql` ke database (lewat Neon SQL editor, `psql`, atau tool migrasi favoritmu). Untuk MVP ini belum dipasang tool migrasi otomatis (mis. `golang-migrate`) — silakan tambahkan kalau mau lebih rapi.
 

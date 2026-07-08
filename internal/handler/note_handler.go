@@ -4,6 +4,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -41,6 +42,12 @@ type createNoteResponse struct {
 // Create menangani POST /api/notes.
 func (h *NoteHandler) Create(c *gin.Context) {
 	var req createNoteRequest
+	ctx := c.Request.Context()
+	if ctx.Err() != nil {
+		c.JSON(499, gin.H{"error": "request dibatalkan"})
+		return
+	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -61,7 +68,7 @@ func (h *NoteHandler) Create(c *gin.Context) {
 		title = "Catatan tanpa judul"
 	}
 
-	id, err := h.svc.CreateNote(c.Request.Context(), req.Mode, title, req.Content, req.Password)
+	id, err := h.svc.CreateNote(ctx, req.Mode, title, req.Content, req.Password)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -81,8 +88,13 @@ func (h *NoteHandler) Create(c *gin.Context) {
 // beserta title (plaintext); klien harus memanggil endpoint Unlock dengan password.
 func (h *NoteHandler) Get(c *gin.Context) {
 	id := c.Param("id")
+	ctx := c.Request.Context()
+	if ctx.Err() != nil {
+		c.JSON(499, gin.H{"error": "request dibatalkan"})
+		return
+	}
 
-	mode, title, content, err := h.svc.GetNoteMeta(c.Request.Context(), id)
+	mode, title, content, err := h.svc.GetNoteMeta(ctx, id)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -96,6 +108,7 @@ func (h *NoteHandler) Get(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resp)
+
 }
 
 type unlockRequest struct {
@@ -105,14 +118,18 @@ type unlockRequest struct {
 // Unlock menangani POST /api/notes/:id/unlock untuk mode private.
 func (h *NoteHandler) Unlock(c *gin.Context) {
 	id := c.Param("id")
-
+	ctx := c.Request.Context()
+	if ctx.Err() != nil {
+		c.JSON(499, gin.H{"error": "request dibatalkan"})
+		return
+	}
 	var req unlockRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	title, content, err := h.svc.UnlockPrivateNote(c.Request.Context(), id, req.Password)
+	title, content, err := h.svc.UnlockPrivateNote(ctx, id, req.Password)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -130,7 +147,11 @@ type updateNoteRequest struct {
 // Update menangani PUT /api/notes/:id.
 func (h *NoteHandler) Update(c *gin.Context) {
 	id := c.Param("id")
-
+	ctx := c.Request.Context()
+	if ctx.Err() != nil {
+		c.JSON(499, gin.H{"error": "request dibatalkan"})
+		return
+	}
 	var req updateNoteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -142,7 +163,7 @@ func (h *NoteHandler) Update(c *gin.Context) {
 		title = "Catatan tanpa judul"
 	}
 
-	if err := h.svc.UpdateNote(c.Request.Context(), id, title, req.Content, req.Password); err != nil {
+	if err := h.svc.UpdateNote(ctx, id, title, req.Content, req.Password); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -157,13 +178,17 @@ type deleteNoteRequest struct {
 // Delete menangani DELETE /api/notes/:id.
 func (h *NoteHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
-
+	ctx := c.Request.Context()
+	if ctx.Err() != nil {
+		c.JSON(499, gin.H{"error": "request dibatalkan"})
+		return
+	}
 	var req deleteNoteRequest
 	// Body opsional untuk note public, jadi error binding sengaja diabaikan
 	// (mis. body kosong pada request DELETE tanpa password).
 	_ = c.ShouldBindJSON(&req)
 
-	if err := h.svc.DeleteNote(c.Request.Context(), id, req.Password); err != nil {
+	if err := h.svc.DeleteNote(ctx, id, req.Password); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -175,7 +200,11 @@ func (h *NoteHandler) Delete(c *gin.Context) {
 func (h *NoteHandler) List(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "20")
 	offsetStr := c.DefaultQuery("offset", "0")
-
+	ctx := c.Request.Context()
+	if ctx.Err() != nil {
+		c.JSON(499, gin.H{"error": "request dibatalkan"})
+		return
+	}
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit < 1 {
 		limit = 20
@@ -189,7 +218,7 @@ func (h *NoteHandler) List(c *gin.Context) {
 		offset = 0
 	}
 
-	notes, err := h.svc.ListNotes(c.Request.Context(), int32(limit), int32(offset))
+	notes, err := h.svc.ListNotes(ctx, int32(limit), int32(offset))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -203,6 +232,8 @@ func respondError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, service.ErrNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "note tidak ditemukan"})
+	case errors.Is(err, context.Canceled): // ← TAMBAH INI
+		c.JSON(499, gin.H{"error": "request dibatalkan oleh client"})
 	case errors.Is(err, service.ErrWrongPassword):
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "password salah"})
 	case errors.Is(err, service.ErrPasswordNeeded):
