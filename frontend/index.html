@@ -1,1085 +1,723 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Notepad Sharelink</title>
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-
-            body {
-                font-family:
-                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                    Oxygen, Ubuntu, sans-serif;
-                background: #f0f2f5;
-                min-height: 100vh;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                padding: 20px;
-            }
-
-            .container {
-                background: white;
-                border-radius: 12px;
-                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-                padding: 32px;
-                max-width: 640px;
-                width: 100%;
-            }
-
-            h1 {
-                font-size: 24px;
-                font-weight: 600;
-                color: #1a1a1a;
-                margin-bottom: 8px;
-            }
-
-            .subtitle {
-                color: #666;
-                font-size: 14px;
-                margin-bottom: 24px;
-            }
-
-            .mode-selector {
-                display: flex;
-                gap: 12px;
-                margin-bottom: 20px;
-            }
-
-            .mode-btn {
-                flex: 1;
-                padding: 10px;
-                border: 2px solid #e0e0e0;
-                border-radius: 8px;
-                background: white;
-                cursor: pointer;
-                font-weight: 500;
-                transition: all 0.2s;
-                color: #666;
-            }
-
-            .mode-btn:hover {
-                border-color: #999;
-            }
-
-            .mode-btn.active {
-                border-color: #0066ff;
-                background: #f0f5ff;
-                color: #0066ff;
-            }
-
-            .mode-btn.public.active {
-                border-color: #00a86b;
-                background: #f0faf5;
-                color: #00a86b;
-            }
-
-            .mode-btn.private.active {
-                border-color: #7c3aed;
-                background: #f5f0ff;
-                color: #7c3aed;
-            }
-
-            .form-group {
-                margin-bottom: 16px;
-            }
-
-            label {
-                display: block;
-                font-size: 14px;
-                font-weight: 500;
-                color: #333;
-                margin-bottom: 4px;
-            }
-
-            textarea {
-                width: 100%;
-                padding: 12px;
-                border: 1px solid #d0d0d0;
-                border-radius: 8px;
-                font-size: 14px;
-                font-family: inherit;
-                resize: vertical;
-                min-height: 150px;
-                transition: border-color 0.2s;
-            }
-
-            textarea:focus {
-                outline: none;
-                border-color: #0066ff;
-            }
-
-            input[type="password"] {
-                width: 100%;
-                padding: 10px 12px;
-                border: 1px solid #d0d0d0;
-                border-radius: 8px;
-                font-size: 14px;
-                transition: border-color 0.2s;
-            }
-
-            input[type="password"]:focus {
-                outline: none;
-                border-color: #0066ff;
-            }
-
-            input[type="text"] {
-                width: 100%;
-                padding: 10px 12px;
-                border: 1px solid #d0d0d0;
-                border-radius: 8px;
-                font-size: 14px;
-                transition: border-color 0.2s;
-            }
-
-            input[type="text"]:focus {
-                outline: none;
-                border-color: #0066ff;
-            }
-
-            .password-field {
-                display: none;
-            }
-
-            .password-field.visible {
-                display: block;
-            }
-
-            .btn {
-                padding: 10px 24px;
-                border: none;
-                border-radius: 8px;
-                font-weight: 500;
-                font-size: 14px;
-                cursor: pointer;
-                transition: all 0.2s;
-            }
-
-            .btn-primary {
-                background: #0066ff;
-                color: white;
-            }
-
-            .btn-primary:hover {
-                background: #0052cc;
-            }
-
-            .btn-primary:disabled {
-                opacity: 0.6;
-                cursor: not-allowed;
-            }
-
-            .btn-success {
-                background: #00a86b;
-                color: white;
-            }
-
-            .btn-success:hover {
-                background: #008f59;
-            }
-
-            .btn-danger {
-                background: #dc2626;
-                color: white;
-            }
-
-            .btn-danger:hover {
-                background: #b91c1c;
-            }
-
-            .btn-secondary {
-                background: #e0e0e0;
-                color: #333;
-            }
-
-            .btn-secondary:hover {
-                background: #d0d0d0;
-            }
-
-            .btn-group {
-                display: flex;
-                gap: 8px;
-                flex-wrap: wrap;
-            }
-
-            .result-area {
-                margin-top: 24px;
-                padding-top: 20px;
-                border-top: 1px solid #e0e0e0;
-            }
-
-            .result-box {
-                background: #f8f9fa;
-                border-radius: 8px;
-                padding: 16px;
-                margin-top: 8px;
-            }
-
-            .result-box .label {
-                font-size: 12px;
-                font-weight: 600;
-                color: #666;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-
-            .result-box .value {
-                margin-top: 4px;
-                word-break: break-all;
-                font-family: "Courier New", monospace;
-                font-size: 14px;
-            }
-
-            .result-box .value.url {
-                color: #0066ff;
-                cursor: pointer;
-            }
-
-            .result-box .value.url:hover {
-                text-decoration: underline;
-            }
-
-            .note-content {
-                background: #f8f9fa;
-                border-radius: 8px;
-                padding: 16px;
-                white-space: pre-wrap;
-                font-size: 14px;
-                line-height: 1.6;
-                max-height: 400px;
-                overflow-y: auto;
-            }
-
-            .locked-message {
-                text-align: center;
-                padding: 24px;
-                color: #666;
-            }
-
-            .locked-message .lock-icon {
-                font-size: 32px;
-                display: block;
-                margin-bottom: 8px;
-            }
-
-            .toast {
-                position: fixed;
-                bottom: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: #333;
-                color: white;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-size: 14px;
-                opacity: 0;
-                transition: opacity 0.3s;
-                z-index: 1000;
-                pointer-events: none;
-            }
-
-            .toast.show {
-                opacity: 1;
-            }
-
-            .toast.error {
-                background: #dc2626;
-            }
-
-            .toast.success {
-                background: #00a86b;
-            }
-
-            .loading {
-                opacity: 0.6;
-                pointer-events: none;
-            }
-
-            .view-mode {
-                margin-top: 16px;
-            }
-
-            .view-mode .note-actions {
-                display: flex;
-                gap: 8px;
-                margin-top: 12px;
-            }
-
-            .inline-flex {
-                display: flex;
-                gap: 8px;
-                align-items: center;
-            }
-
-            .hidden {
-                display: none !important;
-            }
-
-            .badge {
-                display: inline-block;
-                padding: 2px 10px;
-                border-radius: 12px;
-                font-size: 12px;
-                font-weight: 500;
-            }
-
-            .badge.public {
-                background: #e0f5ec;
-                color: #00a86b;
-            }
-
-            .badge.private {
-                background: #ede9fe;
-                color: #7c3aed;
-            }
-
-            .share-info {
-                display: flex;
-                gap: 12px;
-                align-items: center;
-                margin-top: 8px;
-                flex-wrap: wrap;
-            }
-
-            .nav-bar {
-                display: flex;
-                gap: 8px;
-                margin-bottom: 16px;
-                flex-wrap: wrap;
-            }
-
-            .note-list {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .note-list-item {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 12px 16px;
-                background: #f8f9fa;
-                border-radius: 8px;
-                cursor: pointer;
-                transition: background 0.2s;
-            }
-
-            .note-list-item:hover {
-                background: #e8eaed;
-            }
-
-            .note-list-item .note-title {
-                font-weight: 500;
-                font-size: 14px;
-                color: #333;
-            }
-
-            .note-list-item .note-meta {
-                font-size: 12px;
-                color: #999;
-            }
-
-            .pagination {
-                display: flex;
-                gap: 8px;
-                justify-content: center;
-                margin-top: 16px;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container" id="app">
-            <h1>📝 Notepad Sharelink</h1>
-            <p class="subtitle">Buat catatan yang bisa dibagikan lewat link</p>
-
-            <!-- CREATE MODE -->
-            <div id="createMode">
-                <div class="mode-selector">
-                    <button
-                        class="mode-btn public active"
-                        data-mode="public"
-                        onclick="setMode('public')"
-                    >
-                        🌍 Public
-                    </button>
-                    <button
-                        class="mode-btn private"
-                        data-mode="private"
-                        onclick="setMode('private')"
-                    >
-                        🔒 Private
-                    </button>
-                </div>
-
-                <div class="form-group">
-                    <label for="title">Judul</label>
-                    <input
-                        type="text"
-                        id="title"
-                        placeholder="Judul catatan (opsional)"
-                        maxlength="200"
-                    />
-                </div>
-
-                <div class="form-group">
-                    <label for="content">Isi catatan</label>
-                    <textarea
-                        id="content"
-                        placeholder="Tulis catatanmu di sini..."
-                    ></textarea>
-                </div>
-
-                <div class="form-group password-field" id="passwordField">
-                    <label for="password">Password</label>
-                    <input
-                        type="password"
-                        id="password"
-                        placeholder="Masukkan password"
-                    />
-                </div>
-
-                <button
-                    class="btn btn-primary"
-                    id="createBtn"
-                    onclick="createNote()"
-                >
-                    ✨ Buat Catatan
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notepad Sharing — Share Notes Instantly</title>
+    <!-- Alpine.js & Day.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/relativeTime.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/locale/id.js"></script>
+    <style>
+        :root {
+            --bg: #eef2ff; --bg-2: #f8faff; --card: #fff; --text: #0f1729;
+            --text-muted: #64748b; --border: #e6e9f2; --blue: #2f5bff;
+            --blue-dark: #1f45db; --blue-light: #eef2ff; --green: #189a5b;
+            --green-light: #e9f9f1; --green-border: #bfead2; --amber: #d0641a;
+            --amber-light: #fdf1e3; --amber-border: #f3d3ac; --red: #dc2626;
+            --shadow: 0 8px 24px rgba(31, 45, 90, 0.08);
+            --radius-lg: 20px; --radius-md: 14px; --radius-pill: 999px;
+        }
+        body.dark {
+            --bg: #0b1120; --bg-2: #0b1120; --card: #131b2e; --text: #eef1f8;
+            --text-muted: #93a0bd; --border: #24304a; --blue-light: #172552;
+            --green-light: #0f2a1e; --green-border: #1c4732;
+            --amber-light: #33220f; --amber-border: #5a3c18;
+            --shadow: 0 8px 24px rgba(0,0,0,0.35);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-2); color: var(--text); min-height: 100vh;
+            padding-bottom: 92px; transition: background 0.25s ease, color 0.25s ease;
+        }
+        .topbar { position: sticky; top: 0; z-index: 50; background: var(--card); border-bottom: 1px solid var(--border); }
+        .topbar-inner { max-width: 720px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; }
+        .brand { display: flex; align-items: center; gap: 10px; cursor: pointer; background: none; border: none; font: inherit; color: inherit; }
+        .brand-icon { width: 38px; height: 38px; border-radius: 11px; background: var(--blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+        .brand-icon.small { width: 30px; height: 30px; border-radius: 9px; font-size: 14px; }
+        .brand-name { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+        .brand-name .dot { color: var(--blue); }
+        .topbar-actions { display: flex; align-items: center; gap: 10px; }
+        .dark-toggle { border: none; background: var(--blue-light); border-radius: var(--radius-pill); width: 52px; height: 30px; display: flex; align-items: center; padding: 3px; cursor: pointer; }
+        .dark-toggle .thumb { width: 24px; height: 24px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.2s ease; }
+        body.dark .dark-toggle .thumb { transform: translateX(22px); }
+        .icon-btn { width: 40px; height: 40px; border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--card); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+        .icon-btn:hover { border-color: var(--blue); color: var(--blue); }
+        .icon-btn.primary { background: var(--blue); border-color: var(--blue); color: white; }
+        .icon-btn.primary:hover { background: var(--blue-dark); }
+        .icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .icon-btn svg { width: 19px; height: 19px; }
+        .menu-overlay { position: fixed; inset: 0; background: var(--card); z-index: 200; }
+        .menu-panel { max-width: 720px; margin: 0 auto; }
+        .menu-links { padding: 12px 20px; display: flex; flex-direction: column; gap: 4px; }
+        .menu-links a { padding: 16px 4px; border-bottom: 1px solid var(--border); text-decoration: none; font-size: 17px; color: var(--text-muted); font-weight: 500; }
+        .page { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+        .hero { background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%); text-align: center; padding: 44px 20px 36px; margin: 0 -20px; }
+        .hero-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--card); border-radius: var(--radius-pill); padding: 9px 18px; font-size: 13.5px; font-weight: 700; color: var(--blue); box-shadow: var(--shadow); margin-bottom: 22px; }
+        .hero-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); }
+        .hero-title { font-size: 42px; font-weight: 800; line-height: 1.12; letter-spacing: -0.03em; }
+        .hero-title .accent { color: var(--blue); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+        .hero-subtitle { max-width: 480px; margin: 18px auto 0; color: var(--text-muted); font-size: 15.5px; line-height: 1.6; }
+        .key-search { margin: 28px auto 0; max-width: 520px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-pill); box-shadow: var(--shadow); display: flex; align-items: center; padding: 6px 6px 6px 18px; gap: 8px; }
+        .key-search input { flex: 1; border: none; outline: none; background: none; font-family: "Courier New", monospace; font-size: 15px; color: var(--text); padding: 10px 0; }
+        .key-tips { margin-top: 16px; font-size: 13.5px; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+        .chip { border: 1px solid var(--border); background: var(--card); color: var(--blue); font-family: "Courier New", monospace; font-weight: 700; font-size: 13px; padding: 4px 12px; border-radius: var(--radius-pill); cursor: pointer; }
+        .chip:hover { border-color: var(--blue); }
+        .section-header { display: flex; align-items: flex-end; justify-content: space-between; margin: 30px 0 14px; }
+        .section-header h2 { font-size: 21px; font-weight: 800; }
+        .section-header .muted { font-size: 13px; color: var(--text-muted); display: block; margin-top: 2px; }
+        .link-action { font-size: 14px; font-weight: 700; color: var(--blue); text-decoration: none; }
+        .note-grid { display: flex; flex-direction: column; gap: 14px; }
+        .note-card { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; }
+        .note-card:hover { box-shadow: var(--shadow); border-color: transparent; transform: translateY(-1px); }
+        .share-icon-btn {
+    position: absolute;
+    top: 60px;   /* sebelumnya 14px */
+    right: 14px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--blue-light);
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+    transition: background 0.15s ease, transform 0.15s ease;
+        }
+        .share-icon-btn:hover { background: var(--blue); color: white; transform: scale(1.06); }
+        .share-icon-btn svg { width: 16px; height: 16px; }
+        .note-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .note-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+        .note-card-badges { display: flex; gap: 8px; }
+        .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: var(--radius-pill); font-size: 12.5px; font-weight: 700; }
+        .badge.key { background: var(--blue-light); color: var(--blue); font-family: "Courier New", monospace; }
+        .badge.public { background: var(--green-light); color: var(--green); }
+        .badge.private { background: var(--amber-light); color: var(--amber); }
+        .note-card-title { font-size: 16.5px; font-weight: 700; margin-bottom: 6px; }
+        .note-card-excerpt { font-size: 14px; color: var(--text-muted); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .note-card-footer { display: flex; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--text-muted); }
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); background: var(--card); border: 1px dashed var(--border); border-radius: var(--radius-lg); font-size: 14px; }
+        .skeleton { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; color: var(--text-muted); font-size: 14px; text-align: center; }
+        .editor-header { display: flex; align-items: center; gap: 10px; padding: 18px 0 6px; justify-content: space-between; }
+        .editor-header-left { display: flex; align-items: center; gap: 10px; }
+        .editor-header-right { display: flex; gap: 8px; }
+        .field-label { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin: 22px 0 8px; }
+        input[type="text"], input[type="password"], textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); color: var(--text); font-size: 15px; padding: 13px 16px; outline: none; transition: border-color 0.15s; }
+        input[type="text"]:focus, input[type="password"]:focus, textarea:focus { border-color: var(--blue); }
+        textarea { min-height: 200px; resize: vertical; margin-top: 10px; font-family: inherit; }
+        .visibility-toggle { display: flex; background: var(--bg); border-radius: var(--radius-pill); padding: 4px; gap: 4px; }
+        .vis-btn { flex: 1; border: none; background: none; padding: 12px; border-radius: var(--radius-pill); font-weight: 700; font-size: 14.5px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; }
+        .vis-btn.active[data-mode="public"] { background: var(--card); color: var(--green); box-shadow: var(--shadow); }
+        .vis-btn.active[data-mode="private"] { background: var(--card); color: var(--amber); box-shadow: var(--shadow); }
+        .visibility-banner { display: flex; gap: 12px; align-items: flex-start; border-radius: var(--radius-md); padding: 16px; margin-top: 12px; font-size: 13.5px; }
+        .visibility-banner.public { background: var(--green-light); border: 1px solid var(--green-border); color: var(--green); }
+        .visibility-banner.private { background: var(--amber-light); border: 1px solid var(--amber-border); color: var(--amber); }
+        .btn { padding: 13px 22px; border: none; border-radius: var(--radius-pill); font-weight: 700; font-size: 14.5px; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-block { width: 100%; }
+        .btn-primary { background: var(--blue); color: white; }
+        .btn-primary:hover { background: var(--blue-dark); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-secondary { background: var(--blue-light); color: var(--blue); }
+        .btn-danger { background: #fde8e8; color: var(--red); }
+        body.dark .btn-danger { background: #3a1414; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+        .note-view-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px; margin-top: 18px; }
+        .note-view-content { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; white-space: pre-wrap; font-size: 14.5px; line-height: 1.65; max-height: 420px; overflow-y: auto; margin-top: 14px; }
+        .locked-message { text-align: center; padding: 20px; }
+        .toast { position: fixed; bottom: 92px; left: 50%; transform: translateX(-50%); background: #1a2236; color: white; padding: 13px 22px; border-radius: var(--radius-pill); font-weight: 600; z-index: 1000; box-shadow: 0 8px 20px rgba(0,0,0,0.25); white-space: nowrap; }
+        .toast.error { background: var(--red); }
+        .toast.success { background: var(--green); }
+        .fab { position: fixed; right: 22px; bottom: 92px; width: 58px; height: 58px; border-radius: 50%; background: var(--blue); color: white; border: none; font-size: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 24px rgba(47,91,255,0.4); z-index: 60; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--border); display: flex; z-index: 70; padding-bottom: env(safe-area-inset-bottom, 0); }
+        .nav-item { flex: 1; border: none; background: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0 8px; color: var(--text-muted); cursor: pointer; font-size: 12px; font-weight: 600; }
+        .nav-item.active { color: var(--blue); }
+        .nav-item svg { width: 22px; height: 22px; }
+        .profile-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-top: 18px; text-align: center; }
+        .profile-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--blue-light); color: var(--blue); font-size: 26px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+        .footer-note { text-align: center; color: var(--text-muted); font-size: 12.5px; margin: 36px 0 12px; }
+    </style>
+</head>
+<body x-data="notepadApp()" x-init="init()" :class="{ 'dark': darkMode }">
+    <!-- ========== Topbar ========== -->
+    <header class="topbar">
+        <div class="topbar-inner">
+            <button class="brand" @click="view = 'home'; fetchRecentPublic()">
+                <div class="brand-icon">📄</div>
+                <span class="brand-name">Notepad Sharing</span>
+            </button>
+            <div class="topbar-actions">
+                <button class="dark-toggle" @click="toggleDark()" aria-label="Ubah tema">
+                    <span class="thumb" x-text="darkMode ? '🌙' : '☀️'"></span>
                 </button>
-
-                <div style="margin-top: 12px">
-                    <button class="btn btn-secondary" onclick="showList()">
-                        📋 Daftar Catatan
-                    </button>
-                </div>
-            </div>
-
-            <!-- LIST MODE -->
-            <div id="listMode" class="hidden">
-                <div class="nav-bar">
-                    <button class="btn btn-secondary" onclick="showCreate()">
-                        📝 Buat Catatan
-                    </button>
-                </div>
-                <h3 style="margin-bottom: 12px">📋 Daftar Catatan</h3>
-                <div id="listContent">
-                    <div class="result-box">
-                        <div class="label">⏳ Memuat...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- VIEW MODE -->
-            <div id="viewMode" class="hidden">
-                <div id="viewContent">
-                    <!-- Will be filled by JS -->
-                </div>
-            </div>
-
-            <!-- Result area for create -->
-            <div id="resultArea" class="result-area hidden">
-                <div id="resultContent"></div>
+                <button class="icon-btn" @click="menuOpen = true" aria-label="Menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+                </button>
             </div>
         </div>
+    </header>
 
-        <!-- Toast notification -->
-        <div id="toast" class="toast"></div>
-
-        <script>
-            const API_BASE = "/api/notes";
-            let currentMode = "public";
-            let currentNoteId = null;
-
-            // --- Toast ---
-            function showToast(message, type = "success") {
-                const toast = document.getElementById("toast");
-                toast.textContent = message;
-                toast.className = "toast " + type + " show";
-                clearTimeout(toast._timeout);
-                toast._timeout = setTimeout(() => {
-                    toast.classList.remove("show");
-                }, 3000);
-            }
-
-            // --- Mode selector ---
-            function setMode(mode) {
-                currentMode = mode;
-                document.querySelectorAll(".mode-btn").forEach((btn) => {
-                    btn.classList.toggle("active", btn.dataset.mode === mode);
-                });
-                const pwdField = document.getElementById("passwordField");
-                pwdField.classList.toggle("visible", mode === "private");
-            }
-
-            // --- Create note ---
-            async function createNote() {
-                const title = document.getElementById("title").value.trim();
-                const content = document.getElementById("content").value.trim();
-                if (!content) {
-                    showToast("Isi catatan tidak boleh kosong", "error");
-                    return;
-                }
-
-                const payload = {
-                    mode: currentMode,
-                    title: title || "Catatan tanpa judul",
-                    content: content,
-                };
-
-                if (currentMode === "private") {
-                    const password = document.getElementById("password").value;
-                    if (!password || password.length < 4) {
-                        showToast("Password minimal 4 karakter", "error");
-                        return;
-                    }
-                    payload.password = password;
-                }
-
-                const btn = document.getElementById("createBtn");
-                btn.disabled = true;
-                btn.textContent = "\u23F3 Menyimpan...";
-
-                try {
-                    const response = await fetch(API_BASE, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload),
-                    });
-
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(data.error || "Gagal membuat catatan");
-                    }
-
-                    // Show result
-                    const resultArea = document.getElementById("resultArea");
-                    const resultContent =
-                        document.getElementById("resultContent");
-                    resultArea.classList.remove("hidden");
-
-                    const shareUrl = window.location.origin + data.share_url;
-                    resultContent.innerHTML = `
-                    <div class="result-box">
-                        <div class="label">\u2705 Catatan berhasil dibuat!</div>
-                        <div class="share-info">
-                            <span class="badge ${data.mode}">${data.mode === "public" ? "\U0001F30D Public" : "\U0001F512 Private"}</span>
-                            <span style="font-size:13px;color:#666;">ID: ${data.id}</span>
-                        </div>
-                        <div style="margin-top:8px;">
-                            <div class="label" style="font-size:14px;text-transform:none;">${escapeHtml(data.title)}</div>
-                        </div>
-                        <div style="margin-top:8px;">
-                            <div class="label">\U0001F517 Link bagikan</div>
-                            <div class="value url" onclick="copyToClipboard('${shareUrl}')">${shareUrl}</div>
-                        </div>
-                        <div style="margin-top:12px;">
-                            <button class="btn btn-secondary" onclick="viewNote('${data.id}')">\U0001F441\uFE0F Lihat catatan</button>
-                            <button class="btn btn-secondary" onclick="clearCreateForm()">\U0001F4DD Buat baru</button>
-                        </div>
-                    </div>
-                `;
-
-                    document.getElementById("title").value = "";
-                    document.getElementById("content").value = "";
-                    if (currentMode === "private") {
-                        document.getElementById("password").value = "";
-                    }
-
-                    showToast("Catatan berhasil dibuat!", "success");
-                } catch (err) {
-                    showToast(err.message, "error");
-                } finally {
-                    btn.disabled = false;
-                    btn.textContent = "\u2728 Buat Catatan";
-                }
-            }
-
-            // --- View note ---
-            async function viewNote(id) {
-                currentNoteId = id;
-                document.getElementById("createMode").classList.add("hidden");
-                document.getElementById("listMode").classList.add("hidden");
-                document.getElementById("resultArea").classList.add("hidden");
-                document.getElementById("viewMode").classList.remove("hidden");
-
-                const viewContent = document.getElementById("viewContent");
-                viewContent.innerHTML = `
-                <div class="result-box">
-                    <div class="label">\u23F3 Memuat catatan...</div>
+    <!-- ========== Menu Overlay ========== -->
+    <div class="menu-overlay" x-show="menuOpen" @click.self="menuOpen = false">
+        <div class="menu-panel">
+            <div class="topbar-inner">
+                <div class="brand"><div class="brand-icon">📄</div><span class="brand-name">Notepad Sharing</span></div>
+                <div class="topbar-actions">
+                    <button class="dark-toggle" @click="toggleDark()"><span class="thumb" x-text="darkMode ? '🌙' : '☀️'"></span></button>
+                    <button class="icon-btn" @click="menuOpen = false" aria-label="Tutup menu">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+                    </button>
                 </div>
-            `;
+            </div>
+            <nav class="menu-links">
+                <a href="#" @click.prevent="menuOpen = false">Features</a>
+                <a href="#" @click.prevent="menuOpen = false">Pricing</a>
+            </nav>
+            <button class="btn btn-primary btn-block" @click="toast('Login belum tersedia di versi ini 🙂'); menuOpen = false">Login</button>
+        </div>
+    </div>
 
-                try {
-                    const response = await fetch(`${API_BASE}/${id}`);
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(data.error || "Gagal memuat catatan");
-                    }
-
-                    if (data.locked) {
-                        // Private note, need password
-                        viewContent.innerHTML = `
-                        <div class="result-box">
-                            <div class="locked-message">
-                                <span class="lock-icon">\U0001F512</span>
-                                <strong>Catatan ini dilindungi password</strong>
-                                <p style="margin-top:4px;font-size:13px;color:#666;">${escapeHtml(data.title)}</p>
-                                <p style="margin-top:8px;font-size:13px;color:#666;">Masukkan password untuk melihat isinya</p>
-                            </div>
-                            <div class="form-group" style="margin-top:12px;">
-                                <input type="password" id="unlockPassword" placeholder="Masukkan password" style="width:100%;padding:10px 12px;border:1px solid #d0d0d0;border-radius:8px;font-size:14px;" />
-                            </div>
-                            <button class="btn btn-primary" onclick="unlockNote('${id}')">\U0001F513 Buka</button>
-                            <button class="btn btn-secondary" onclick="showCreate()" style="margin-left:8px;">\u2190 Kembali</button>
-                        </div>
-                    `;
-                        return;
-                    }
-
-                    // Public note or already unlocked
-                    renderNoteContent(data);
-                } catch (err) {
-                    viewContent.innerHTML = `
-                    <div class="result-box">
-                        <div style="color:#dc2626;">\u274C ${err.message}</div>
-                        <button class="btn btn-secondary" onclick="showCreate()" style="margin-top:12px;">\u2190 Kembali</button>
-                    </div>
-                `;
-                    showToast(err.message, "error");
-                }
-            }
-
-            // --- Unlock private note ---
-            async function unlockNote(id) {
-                const password =
-                    document.getElementById("unlockPassword").value;
-                if (!password) {
-                    showToast("Masukkan password", "error");
-                    return;
-                }
-
-                const viewContent = document.getElementById("viewContent");
-                viewContent.innerHTML = `
-                <div class="result-box">
-                    <div class="label">\u23F3 Memverifikasi...</div>
+    <main class="page">
+        <!-- ========== HOME ========== -->
+        <section x-show="view === 'home'">
+            <div class="hero">
+                <span class="hero-badge"><span class="dot"></span> Simple · Fast · Shareable</span>
+                <h1 class="hero-title">Share Notes<br><span class="accent">Instantly</span></h1>
+                <p class="hero-subtitle">Buat dan bagikan catatan lewat link unik.</p>
+                <div class="key-search">
+                    <span>🔗</span>
+                    <input type="text" x-model="searchKey" placeholder="Masukkan kode catatan..." maxlength="32" @keydown.enter="openByKey()" />
+                    <button class="btn btn-primary" @click="openByKey()">Buka →</button>
                 </div>
-            `;
-
-                try {
-                    const response = await fetch(`${API_BASE}/${id}/unlock`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ password }),
-                    });
-
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(data.error || "Password salah");
-                    }
-
-                    // Unlock now returns title + content directly
-                    renderNoteContent(data);
-                    showToast("\U0001F513 Catatan terbuka!", "success");
-                } catch (err) {
-                    viewContent.innerHTML = `
-                    <div class="result-box">
-                        <div style="color:#dc2626;">\u274C ${err.message}</div>
-                        <div class="form-group" style="margin-top:12px;">
-                            <input type="password" id="unlockPassword" placeholder="Masukkan password" style="width:100%;padding:10px 12px;border:1px solid #d0d0d0;border-radius:8px;font-size:14px;" />
+                
+                </div>
+            </div>
+            <div class="section-header">
+                <div><h2>Catatan Publik Terbaru</h2><span class="muted" x-text="recentPublic.length + ' catatan publik'"></span></div>
+                <a href="#" class="link-action" @click.prevent="view = 'list'; fetchList()">Lihat semua ›</a>
+            </div>
+            <div class="note-grid">
+                <template x-if="recentPublic.length === 0">
+                    <div class="empty-state">Belum ada catatan publik. Jadilah yang pertama ✨</div>
+                </template>
+                <template x-for="(n, i) in recentPublic.slice(0,4)" :key="n.id">
+                    <div class="note-card" @click="viewNote(n.id)">
+                        <div class="note-card-top">
+                            <div class="note-icon" :style="'background:' + iconBgs[i % iconBgs.length]" x-text="icons[i % icons.length]"></div>
+                            <div class="note-card-badges">
+                                <span class="badge key" x-text="n.id.slice(0,4)"></span>
+                                <span class="badge public">🌍 Public</span>
+                            </div>
                         </div>
-                        <button class="btn btn-primary" onclick="unlockNote('${id}')">\U0001F513 Buka</button>
-                        <button class="btn btn-secondary" onclick="showCreate()" style="margin-left:8px;">\u2190 Kembali</button>
+                        <h3 class="note-card-title" x-text="n.title"></h3>
+                        <p class="note-card-excerpt" x-text="n.content?.length > 140 ? n.content.slice(0,140)+'…' : n.content"></p>
+                        <div class="note-card-footer">
+                            <span x-text="'🕐 ' + timeAgo(n.created_at)"></span>
+                            <span x-text="(n.content?.trim().split(/\s+/).filter(Boolean).length || 0) + ' kata'"></span>
+                        </div>
                     </div>
-                `;
-                    showToast(err.message, "error");
-                }
-            }
+                </template>
+            </div>
+            <p class="footer-note">© 2026 Notepad Sharing — Notepad Sharing</p>
+        </section>
 
-            // --- Render note content ---
-            function renderNoteContent(data) {
-                const viewContent = document.getElementById("viewContent");
+        <!-- ========== CREATE / EDITOR ========== -->
+        <section x-show="view === 'create'">
+            <div class="editor-header">
+                <div class="editor-header-left">
+                    <button class="icon-btn" @click="view = 'home'; fetchRecentPublic()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                    </button>
+                    <div class="brand-icon small">📄</div>
+                    <span class="brand-name">Notepad Sharing</span>
+                </div>
+                <div class="editor-header-right">
+                    <button class="icon-btn primary" @click="createNote()" :disabled="saving" title="Simpan catatan">💾</button>
+                </div>
+            </div>
+            <div class="field-label">Judul Catatan</div>
+            <input type="text" x-model="form.title" placeholder="Beri judul catatanmu..." maxlength="200" />
+            <div class="field-label">Visibilitas</div>
+            <div class="visibility-toggle">
+                <button class="vis-btn public" :class="{ active: form.mode === 'public' }" data-mode="public" @click="setMode('public')">🌍 Public</button>
+                <button class="vis-btn private" :class="{ active: form.mode === 'private' }" data-mode="private" @click="setMode('private')">🔒 Private</button>
+            </div>
+            <div :class="'visibility-banner ' + form.mode" x-text="form.mode === 'public' ? '🌍 Catatan publik — siapa saja dengan link bisa membuka tanpa password.' : '🔒 Catatan private — dibutuhkan password untuk membuka.'"></div>
+            <div x-show="form.mode === 'private'" style="margin-top:14px;">
+                <input :type="showPassword ? 'text' : 'password'" x-model="form.password" placeholder="Buat password untuk catatan ini..." />
+                <button class="eye-btn" @click="showPassword = !showPassword" style="position:relative; right:30px; background:none; border:none; cursor:pointer;">👁️</button>
+            </div>
+            <textarea x-model="form.content" placeholder="Mulai tulis catatanmu di sini..." @keydown.ctrl.enter="createNote()"></textarea>
+            <div class="btn-group">
+                <button class="btn btn-primary" @click="createNote()" :disabled="saving" style="flex:1">✨ Buat Catatan</button>
+                <button class="btn btn-secondary" @click="view = 'list'; fetchList()">📋 Semua Catatan</button>
+            </div>
+            <!-- Hasil setelah membuat -->
+            <div x-show="resultNote" class="note-view-card" style="margin-top:20px;">
+                <span class="badge" :class="resultNote.mode" x-text="resultNote.mode === 'public' ? '🌍 Public' : '🔒 Private'"></span>
+                <div class="field-label" x-text="resultNote.title"></div>
+                <div class="field-label">Link bagikan</div>
+                <div class="key-search" style="margin:0;">
+                    <span>🔗</span>
+                    <input type="text" :value="shareUrl(resultNote.id)" readonly />
+                    <button class="btn btn-secondary" @click="copyToClipboard(shareUrl(resultNote.id))">Salin</button>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" @click="viewNote(resultNote.id)">👁️ Lihat catatan</button>
+                    <button class="btn btn-secondary" @click="resetForm()">📝 Buat baru</button>
+                </div>
+            </div>
+        </section>
 
-                const isPublic = data.mode === "public";
-                const badge = isPublic
-                    ? '<span class="badge public">\U0001F30D Public</span>'
-                    : '<span class="badge private">\U0001F512 Private</span>';
+        <!-- ========== LIST (Notes tab) ========== -->
+        <section x-show="view === 'list'">
+            <div class="section-header" style="margin-top:22px;">
+                <div><h2>Semua Catatan</h2><span class="muted" x-text="notes.length + ' catatan'"></span></div>
+                <button class="btn btn-secondary" @click="view = 'create'; resetForm()">+ Catatan</button>
+            </div>
+            <div class="note-grid">
+                <template x-if="notes.length === 0">
+                    <div class="empty-state">Belum ada catatan.</div>
+                </template>
+                <template x-for="(n, i) in notes" :key="n.id">
+                    <div class="note-card" @click="viewNote(n.id)">
+                        <div class="note-card-top">
+                            <div class="note-icon" :style="'background:' + iconBgs[i % iconBgs.length]" x-text="icons[i % icons.length]"></div>
+                            <div class="note-card-badges">
+                                <span class="badge key" x-text="n.id.slice(0,4)"></span>
+                                <span class="badge" :class="n.mode" x-text="n.mode === 'public' ? '🌍 Public' : '🔒 Private'"></span>
+                            </div>
+                        </div>
+                        <h3 class="note-card-title" x-text="n.title"></h3>
+                        <div class="note-card-footer">
+                            <span x-text="'🕐 ' + timeAgo(n.created_at)"></span>
+                            <span></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <div class="pagination" style="display:flex; gap:8px; justify-content:center; margin-top:20px;" x-show="listOffset > 0 || notes.length >= 20">
+                <button class="btn btn-secondary" x-show="listOffset > 0" @click="prevPage()">← Sebelumnya</button>
+                <button class="btn btn-secondary" x-show="notes.length >= 20" @click="nextPage()">Selanjutnya →</button>
+            </div>
+        </section>
 
-                viewContent.innerHTML = `
-                <div class="result-box">
-                    <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px;">
+        <!-- ========== SHARE ========== -->
+        <section x-show="view === 'share'">
+            <div class="section-header" style="margin-top:15px;">
+                <div><h2>Bagikan Catatan</h2><span class="muted" x-text="notes.length + ' catatan'"></span></div>
+                <button class="btn btn-secondary" @click="view = 'create'; resetForm()">+ Catatan</button>
+            </div>
+            <div class="note-grid">
+                <template x-if="notes.length === 0">
+                    <div class="empty-state">Belum ada catatan untuk dibagikan.</div>
+                </template>
+                <template x-for="(n, i) in notes" :key="n.id">
+                    <div class="note-card" @click="viewNote(n.id)">
+                        <button class="share-icon-btn" @click.stop="shareNote(n.id)" title="Bagikan catatan">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/></svg>
+                        </button>
+                        <div class="note-card-top">
+                            <div class="note-icon" :style="'background:' + iconBgs[i % iconBgs.length]" x-text="icons[i % icons.length]"></div>
+                            <div class="note-card-badges">
+                                <span class="badge key" x-text="n.id.slice(0,4)"></span>
+                                <span class="badge" :class="n.mode" x-text="n.mode === 'public' ? '🌍 Public' : '🔒 Private'"></span>
+                            </div>
+                        </div>
+                        <h3 class="note-card-title" x-text="n.title"></h3>
+                        <div class="note-card-footer">
+                            <span x-text="'🕐 ' + timeAgo(n.created_at)"></span>
+                            <span></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </section>
+
+        <!-- ========== VIEW ========== -->
+        <section x-show="view === 'view'">
+            <div class="editor-header">
+                <div class="editor-header-left">
+                    <button class="icon-btn" @click="view = 'home'; fetchRecentPublic()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="20" x2="5" y2="20"/><polyline points="12 19 5 12 12 5"/></svg>
+                    </button>
+                    <div class="brand-icon small">📄</div>
+                    <span class="brand-name">Notepad Sharing</span>
+                </div>
+            </div>
+            <template x-if="viewedNote">
+                <div class="note-view-card">
+                    <div style="display:flex; justify-content:space-between;">
                         <div>
-                            <div class="label">\U0001F4C4 ${escapeHtml(data.title)}</div>
-                            <div style="font-size:13px;color:#666;margin-top:2px;">
-                                ${badge} \u00B7 ID: ${data.id}
+                            <div style="font-size:19px;font-weight:800;" x-text="'📄 ' + viewedNote.title"></div>
+                            <div style="font-size:13px;color:var(--text-muted);margin-top:6px;">
+                                <span class="badge" :class="viewedNote.mode" x-text="viewedNote.mode === 'public' ? '🌍 Public' : '🔒 Private'"></span>
+                                <span class="badge key" x-text="viewedNote.id"></span>
+                                <span x-text="' · ' + (viewedNote.content?.trim().split(/\s+/).filter(Boolean).length || 0) + ' kata'"></span>
                             </div>
                         </div>
                     </div>
-                    <div class="note-content" style="margin-top:12px;">${escapeHtml(data.content)}</div>
-                    <div class="note-actions">
-                        <button class="btn btn-secondary" onclick="editNote('${data.id}')">\u270F\uFE0F Edit</button>
-                        <button class="btn btn-danger" onclick="deleteNote('${data.id}')">\U0001F5D1\uFE0F Hapus</button>
-                        <button class="btn btn-secondary" onclick="showCreate()">\u2190 Kembali</button>
+                    <div class="note-view-content" x-text="viewedNote.content"></div>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" @click="copyToClipboard(shareUrl(viewedNote.id))">🔗 Salin link</button>
+                        <button class="btn btn-secondary" @click="editNote(viewedNote.id)">✏️ Edit</button>
+                        <button class="btn btn-danger" @click="deleteNote(viewedNote.id)">🗑️ Hapus</button>
+                        <button class="btn btn-secondary" @click="view = 'home'; fetchRecentPublic()">← Kembali</button>
                     </div>
                 </div>
-            `;
-            }
-
-            // --- Edit note ---
-            async function editNote(id) {
-                // Switch to edit mode inline
-                const viewContent = document.getElementById("viewContent");
-
-                // Get current content first
-                try {
-                    const response = await fetch(`${API_BASE}/${id}`);
-                    const data = await response.json();
-
-                    if (data.locked) {
-                        showToast(
-                            "Catatan terkunci, buka dulu untuk mengedit",
-                            "error",
-                        );
-                        return;
-                    }
-
-                    const isPrivate = data.mode === "private";
-
-                    viewContent.innerHTML = `
-                    <div class="result-box">
-                        <div class="label">\u270F\uFE0F Edit catatan</div>
-                        <div class="form-group" style="margin-top:12px;">
-                            <label style="font-size:13px;">Judul</label>
-                            <input type="text" id="editTitle" value="${escapeHtml(data.title)}" maxlength="200" style="width:100%;padding:10px 12px;border:1px solid #d0d0d0;border-radius:8px;font-size:14px;" />
-                        </div>
-                        <div class="form-group" style="margin-top:12px;">
-                            <textarea id="editContent" style="min-height:150px;">${escapeHtml(data.content)}</textarea>
-                        </div>
-                        ${
-                            isPrivate
-                                ? `
-                            <div class="form-group password-field visible">
-                                <label for="editPassword">Password (untuk verifikasi)</label>
-                                <input type="password" id="editPassword" placeholder="Masukkan password" />
-                            </div>
-                        `
-                                : ""
-                        }
-                        <div class="btn-group">
-                            <button class="btn btn-primary" onclick="saveEdit('${id}')">\U0001F4BE Simpan</button>
-                            <button class="btn btn-secondary" onclick="viewNote('${id}')">\u21A9\uFE0F Batal</button>
-                        </div>
+            </template>
+            <!-- Locked state -->
+            <template x-if="lockedNote">
+                <div class="note-view-card">
+                    <div class="locked-message">
+                        <span style="font-size:34px;">🔒</span>
+                        <strong>Catatan ini dilindungi password</strong>
+                        <p x-text="lockedNote.title"></p>
+                        <p>Masukkan password untuk melihat isinya</p>
                     </div>
-                `;
-                } catch (err) {
-                    showToast(err.message, "error");
-                }
-            }
+                    <input type="password" x-model="unlockPassword" placeholder="Masukkan password" style="margin-top:12px;" />
+                    <div class="btn-group">
+                        <button class="btn btn-primary" @click="unlockNote(lockedNote.id)">🔓 Buka</button>
+                        <button class="btn btn-secondary" @click="view = 'home'; fetchRecentPublic()">← Kembali</button>
+                    </div>
+                </div>
+            </template>
+            <!-- Edit state -->
+            <template x-if="editingNote">
+                <div class="note-view-card">
+                    <div style="font-size:17px;font-weight:800;">✏️ Edit catatan</div>
+                    <div class="field-label">Judul</div>
+                    <input type="text" x-model="editForm.title" maxlength="200" />
+                    <textarea x-model="editForm.content" style="min-height:220px;"></textarea>
+                    <div x-show="editingNote.mode === 'private'">
+                        <div class="field-label">Password (untuk verifikasi)</div>
+                        <input type="password" x-model="editForm.password" placeholder="Masukkan password" />
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" @click="saveEdit()">💾 Simpan</button>
+                        <button class="btn btn-secondary" @click="cancelEdit()">↩️ Batal</button>
+                    </div>
+                </div>
+            </template>
+        </section>
 
-            // --- Save edit ---
-            async function saveEdit(id) {
-                const title = document.getElementById("editTitle").value.trim();
-                const content = document
-                    .getElementById("editContent")
-                    .value.trim();
-                if (!content) {
-                    showToast("Isi catatan tidak boleh kosong", "error");
-                    return;
-                }
+        <!-- ========== PROFILE ========== -->
+        <section x-show="view === 'profile'">
+            <div class="profile-card">
+                <div class="profile-avatar">👤</div>
+                <h3>Tanpa akun diperlukan</h3>
+                <p>Notepad Sharing sengaja dibuat tanpa sistem login. Setiap catatan punya kode unik sendiri — simpan kode atau link-nya untuk mengakses catatan itu lagi nanti.</p>
+                <div class="profile-info-list" style="margin-top:22px; text-align:left;">
+                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md); margin-bottom:8px;"><span>Mode publik</span><span>🌍 Bisa dibuka siapa saja dengan link</span></div>
+                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md); margin-bottom:8px;"><span>Mode private</span><span>🔒 Dilindungi password</span></div>
+                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md);"><span>Penyimpanan</span><span>☁️ Tersimpan di server Notepad Sharing</span></div>
+                </div>
+            </div>
+        </section>
+    </main>
 
-                const payload = {
-                    title: title || "Catatan tanpa judul",
-                    content,
-                };
-                const passwordInput = document.getElementById("editPassword");
-                if (passwordInput) {
-                    const password = passwordInput.value;
-                    if (!password) {
-                        showToast(
-                            "Masukkan password untuk verifikasi",
-                            "error",
-                        );
-                        return;
+    <!-- FAB -->
+    <button class="fab" x-show="view === 'list'" @click="view = 'create'; resetForm()">+</button>
+
+    <!-- Bottom nav -->
+    <nav class="bottom-nav">
+        <button class="nav-item" :class="{ active: view === 'home' }" @click="view = 'home'; fetchRecentPublic()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg> Home
+        </button>
+        <button class="nav-item" :class="{ active: view === 'list' }" @click="view = 'list'; fetchList()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg> Notes
+        </button>
+        <button class="nav-item" :class="{ active: view === 'share' }" @click="view = 'share'; fetchList()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/></svg> Share
+        </button>
+        <button class="nav-item" :class="{ active: view === 'profile' }" @click="view = 'profile'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg> Profile
+        </button>
+    </nav>
+
+    <!-- Toast -->
+    <div class="toast" x-show="toastMsg" :class="toastType" x-text="toastMsg" x-transition style="pointer-events:none;"></div>
+
+    <script>
+        dayjs.extend(dayjs_plugin_relativeTime);
+        dayjs.locale('id');
+
+        function notepadApp() {
+            const API = '/api/notes';
+            const icons = ["🗒️","📗","🗂️","📘","🧾","📙"];
+            const iconBgs = ["#eef2ff","#e9f9f1","#fdf1e3","#f0f4ff","#fff0f5","#eefcf7"];
+
+            return {
+                // UI state
+                view: 'home',
+                darkMode: false,
+                menuOpen: false,
+                showPassword: false,
+                saving: false,
+                toastMsg: '',
+                toastType: 'success',
+                // Data
+                searchKey: '',
+                recentPublic: [],
+                notes: [],
+                listOffset: 0,
+                // Form
+                form: { title: '', content: '', mode: 'public', password: '' },
+                resultNote: null,
+                // View note
+                viewedNote: null,
+                lockedNote: null,
+                unlockPassword: '',
+                editingNote: null,
+                editForm: { title: '', content: '', password: '' },
+                // Constants for templates
+                icons,
+                iconBgs,
+
+                init() {
+                    const saved = localStorage.getItem('notepad-theme');
+                    this.darkMode = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    this.handleShareLink();
+                    if (this.view === 'home') this.fetchRecentPublic();
+                },
+                toggleDark() {
+                    this.darkMode = !this.darkMode;
+                    localStorage.setItem('notepad-theme', this.darkMode ? 'dark' : 'light');
+                },
+                toast(msg, type = 'success') {
+                    this.toastMsg = msg;
+                    this.toastType = type;
+                    clearTimeout(this._toastTimer);
+                    this._toastTimer = setTimeout(() => this.toastMsg = '', 3000);
+                },
+                timeAgo(dateStr) {
+                    return dayjs(dateStr).fromNow();
+                },
+                shareUrl(id) {
+                    return window.location.origin + '/n/' + id;
+                },
+                escapeHtml(text) {
+                    const div = document.createElement('div');
+                    div.textContent = text ?? '';
+                    return div.innerHTML;
+                },
+                copyToClipboard(text) {
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(text).then(() => this.toast('📋 Link disalin!')).catch(() => fallbackCopy(text, this));
+                    } else {
+                        fallbackCopy(text, this);
                     }
-                    payload.password = password;
-                }
-
-                try {
-                    const response = await fetch(`${API_BASE}/${id}`, {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload),
-                    });
-
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(
-                            data.error || "Gagal mengupdate catatan",
-                        );
+                    function fallbackCopy(t, ctx) {
+                        const input = document.createElement('input');
+                        input.value = t;
+                        document.body.appendChild(input);
+                        input.select();
+                        try { document.execCommand('copy'); ctx.toast('📋 Link disalin!'); } catch (e) { ctx.toast('Gagal menyalin', 'error'); }
+                        document.body.removeChild(input);
                     }
+                },
+                setMode(mode) {
+                    this.form.mode = mode;
+                },
+                resetForm() {
+                    this.form = { title: '', content: '', mode: 'public', password: '' };
+                    this.resultNote = null;
+                    this.showPassword = false;
+                },
 
-                    showToast("\u2705 Catatan berhasil diupdate!", "success");
-                    viewNote(id);
-                } catch (err) {
-                    showToast(err.message, "error");
-                }
-            }
+                // --- API calls ---
+                async fetchRecentPublic() {
+                    try {
+                        const res = await fetch(`${API}?limit=50&offset=0`);
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error);
+                        this.recentPublic = (data.notes || []).filter(n => n.mode === 'public');
+                        // fetch full content for excerpts
+                        for (let n of this.recentPublic.slice(0,4)) {
+                            try {
+                                const r2 = await fetch(`${API}/${n.id}`);
+                                const d2 = await r2.json();
+                                n.content = d2.content || '';
+                            } catch (e) { n.content = ''; }
+                        }
+                    } catch (e) {
+                        this.recentPublic = [];
+                        this.toast(e.message, 'error');
+                    }
+                },
+                async fetchList() {
+                    try {
+                        const res = await fetch(`${API}?limit=20&offset=${this.listOffset}`);
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error);
+                        this.notes = data.notes || [];
+                    } catch (e) {
+                        this.notes = [];
+                        this.toast(e.message, 'error');
+                    }
+                },
+                nextPage() { this.listOffset += 20; this.fetchList(); },
+                prevPage() { this.listOffset = Math.max(0, this.listOffset - 20); this.fetchList(); },
 
-            // --- Delete note ---
-            async function deleteNote(id) {
-                const confirmed = confirm("Yakin ingin menghapus catatan ini?");
-
-                if (!confirmed) return;
-
-                let password = null;
-                // Check if private
-                try {
-                    const response = await fetch(`${API_BASE}/${id}`);
-                    const data = await response.json();
-
-                    if (data.locked || data.mode === "private") {
-                        password = prompt("Masukkan password untuk menghapus:");
-                        if (password === null) return;
-                        if (!password) {
-                            showToast(
-                                "Password diperlukan untuk menghapus",
-                                "error",
-                            );
+                async createNote() {
+                    if (!this.form.content.trim()) return this.toast('Isi catatan tidak boleh kosong', 'error');
+                    if (this.form.mode === 'private' && this.form.password.length < 4) return this.toast('Password minimal 4 karakter', 'error');
+                    this.saving = true;
+                    try {
+                        const payload = {
+                            mode: this.form.mode,
+                            title: this.form.title || 'Catatan tanpa judul',
+                            content: this.form.content,
+                        };
+                        if (this.form.mode === 'private') payload.password = this.form.password;
+                        const res = await fetch(API, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error);
+                        this.resultNote = data;
+                        this.form.title = '';
+                        this.form.content = '';
+                        this.form.password = '';
+                        this.toast('✅ Catatan berhasil dibuat!');
+                    } catch (e) {
+                        this.toast(e.message, 'error');
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+                openByKey() {
+                    const key = this.searchKey.trim();
+                    if (!key) return this.toast('Masukkan kode catatan', 'error');
+                    this.viewNote(key);
+                },
+                async viewNote(id) {
+                    this.view = 'view';
+                    this.viewedNote = null;
+                    this.lockedNote = null;
+                    this.editingNote = null;
+                    try {
+                        const res = await fetch(`${API}/${id}`);
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error);
+                        if (data.locked) {
+                            this.lockedNote = data;
                             return;
                         }
+                        this.viewedNote = data;
+                    } catch (e) {
+                        this.toast(e.message, 'error');
+                        this.view = 'home';
                     }
-                } catch (err) {
-                    showToast(err.message, "error");
-                    return;
-                }
-
-                try {
-                    const response = await fetch(`${API_BASE}/${id}`, {
-                        method: "DELETE",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(password ? { password } : {}),
-                    });
-
-                    if (!response.ok) {
-                        const data = await response.json();
-                        throw new Error(
-                            data.error || "Gagal menghapus catatan",
-                        );
-                    }
-
-                    showToast(
-                        "\U0001F5D1\uFE0F Catatan berhasil dihapus",
-                        "success",
-                    );
-                    showCreate();
-                } catch (err) {
-                    showToast(err.message, "error");
-                }
-            }
-
-            // --- List notes ---
-            let listOffset = 0;
-            const listLimit = 20;
-
-            async function showList() {
-                listOffset = 0;
-                document.getElementById("createMode").classList.add("hidden");
-                document.getElementById("viewMode").classList.add("hidden");
-                document.getElementById("resultArea").classList.add("hidden");
-                document.getElementById("listMode").classList.remove("hidden");
-                await fetchList();
-            }
-
-            async function fetchList() {
-                const listContent = document.getElementById("listContent");
-                listContent.innerHTML = `
-                    <div class="result-box">
-                        <div class="label">\u23F3 Memuat...</div>
-                    </div>
-                `;
-
-                try {
-                    const response = await fetch(
-                        `${API_BASE}?limit=${listLimit}&offset=${listOffset}`,
-                    );
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(data.error || "Gagal memuat daftar");
-                    }
-
-                    const notes = data.notes;
-
-                    if (notes.length === 0) {
-                        listContent.innerHTML = `
-                            <div class="result-box">
-                                <div style="text-align:center;color:#999;">Belum ada catatan.</div>
-                            </div>
-                        `;
-                        return;
-                    }
-
-                    let html = '<div class="note-list">';
-                    for (const note of notes) {
-                        const badge =
-                            note.mode === "public"
-                                ? '<span class="badge public">\U0001F30D Public</span>'
-                                : '<span class="badge private">\U0001F512 Private</span>';
-                        const date = new Date(
-                            note.created_at,
-                        ).toLocaleDateString("id-ID", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
+                },
+                async unlockNote(id) {
+                    if (!this.unlockPassword) return this.toast('Masukkan password', 'error');
+                    try {
+                        const res = await fetch(`${API}/${id}/unlock`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ password: this.unlockPassword }),
                         });
-                        html += `
-                            <div class="note-list-item" onclick="viewNote('${note.id}')">
-                                <div>
-                                    <div class="note-title">${escapeHtml(note.title)}</div>
-                                    <div class="note-meta">${badge} \u00B7 ${date}</div>
-                                </div>
-                                <span style="color:#999;">\u203A</span>
-                            </div>
-                        `;
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error);
+                        data.mode = 'private';
+                        this.viewedNote = data;
+                        this.lockedNote = null;
+                        this.unlockPassword = '';
+                        this.toast('🔓 Catatan terbuka!');
+                    } catch (e) {
+                        this.toast(e.message, 'error');
                     }
-                    html += "</div>";
-
-                    // Pagination
-                    if (listOffset > 0 || notes.length >= listLimit) {
-                        html += '<div class="pagination">';
-                        if (listOffset > 0) {
-                            html += `<button class="btn btn-secondary" onclick="prevPage()">\u2190 Sebelumnya</button>`;
-                        }
-                        if (notes.length >= listLimit) {
-                            html += `<button class="btn btn-secondary" onclick="nextPage()">Selanjutnya \u2192</button>`;
-                        }
-                        html += "</div>";
+                },
+                editNote(id) {
+                    const note = this.viewedNote;
+                    if (!note) return;
+                    this.editingNote = note;
+                    this.editForm = { title: note.title, content: note.content, password: '' };
+                    this.viewedNote = null;
+                },
+                cancelEdit() {
+                    if (this.editingNote) {
+                        this.viewNote(this.editingNote.id);
                     }
-
-                    listContent.innerHTML = html;
-                } catch (err) {
-                    listContent.innerHTML = `
-                        <div class="result-box">
-                            <div style="color:#dc2626;">\u274C ${err.message}</div>
-                        </div>
-                    `;
-                    showToast(err.message, "error");
-                }
-            }
-
-            function nextPage() {
-                listOffset += listLimit;
-                fetchList();
-            }
-
-            function prevPage() {
-                listOffset = Math.max(0, listOffset - listLimit);
-                fetchList();
-            }
-
-            // --- Utility functions ---
-            function escapeHtml(text) {
-                const div = document.createElement("div");
-                div.textContent = text;
-                return div.innerHTML;
-            }
-
-            function copyToClipboard(text) {
-                if (navigator.clipboard) {
-                    navigator.clipboard
-                        .writeText(text)
-                        .then(() => {
-                            showToast(
-                                "\U0001F4CB Link disalin ke clipboard!",
-                                "success",
-                            );
-                        })
-                        .catch(() => {
-                            fallbackCopy(text);
+                    this.editingNote = null;
+                },
+                async saveEdit() {
+                    const note = this.editingNote;
+                    if (!note) return;
+                    if (!this.editForm.content.trim()) return this.toast('Isi catatan tidak boleh kosong', 'error');
+                    const payload = { title: this.editForm.title || 'Catatan tanpa judul', content: this.editForm.content };
+                    if (note.mode === 'private') {
+                        if (!this.editForm.password) return this.toast('Masukkan password untuk verifikasi', 'error');
+                        payload.password = this.editForm.password;
+                    }
+                    try {
+                        const res = await fetch(`${API}/${note.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload),
                         });
-                } else {
-                    fallbackCopy(text);
-                }
-            }
-
-            function fallbackCopy(text) {
-                const input = document.createElement("input");
-                input.value = text;
-                document.body.appendChild(input);
-                input.select();
-                try {
-                    document.execCommand("copy");
-                    showToast(
-                        "\U0001F4CB Link disalin ke clipboard!",
-                        "success",
-                    );
-                } catch (e) {
-                    showToast("Gagal menyalin, silakan salin manual", "error");
-                }
-                document.body.removeChild(input);
-            }
-
-            function clearCreateForm() {
-                document.getElementById("title").value = "";
-                document.getElementById("content").value = "";
-                document.getElementById("password").value = "";
-                document.getElementById("resultArea").classList.add("hidden");
-                document.getElementById("resultContent").innerHTML = "";
-                showCreate();
-            }
-
-            function showCreate() {
-                document
-                    .getElementById("createMode")
-                    .classList.remove("hidden");
-                document.getElementById("listMode").classList.add("hidden");
-                document.getElementById("viewMode").classList.add("hidden");
-                document.getElementById("resultArea").classList.add("hidden");
-                currentNoteId = null;
-            }
-
-            // --- Handle URL params for direct share link ---
-            function handleShareLink() {
-                const path = window.location.pathname;
-                const match = path.match(/^\/n\/([a-zA-Z0-9]+)/);
-                if (match) {
-                    const id = match[1];
-                    // Switch to view mode
-                    document
-                        .getElementById("createMode")
-                        .classList.add("hidden");
-                    document
-                        .getElementById("viewMode")
-                        .classList.remove("hidden");
-                    viewNote(id);
-                }
-            }
-
-            // --- Init ---
-            document.addEventListener("DOMContentLoaded", () => {
-                setMode("public");
-                handleShareLink();
-
-                // Keyboard shortcut: Ctrl+Enter to create note
-                document
-                    .getElementById("content")
-                    .addEventListener("keydown", (e) => {
-                        if (e.ctrlKey && e.key === "Enter") {
-                            e.preventDefault();
-                            createNote();
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error);
+                        this.toast('✅ Catatan berhasil diupdate!');
+                        this.editingNote = null;
+                        this.viewNote(note.id);
+                    } catch (e) {
+                        this.toast(e.message, 'error');
+                    }
+                },
+                async deleteNote(id) {
+                    if (!confirm('Yakin ingin menghapus catatan ini?')) return;
+                    let password = null;
+                    try {
+                        const res = await fetch(`${API}/${id}`);
+                        const data = await res.json();
+                        if (data.locked || data.mode === 'private') {
+                            password = prompt('Masukkan password untuk menghapus:');
+                            if (!password) return;
                         }
-                    });
-            });
-        </script>
-    </body>
+                    } catch (e) { return this.toast(e.message, 'error'); }
+                    try {
+                        const res = await fetch(`${API}/${id}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(password ? { password } : {}),
+                        });
+                        if (!res.ok) {
+                            const data = await res.json();
+                            throw new Error(data.error);
+                        }
+                        this.toast('🗑️ Catatan berhasil dihapus');
+                        this.view = 'home';
+                        this.fetchRecentPublic();
+                    } catch (e) {
+                        this.toast(e.message, 'error');
+                    }
+                },
+                shareNote(id) {
+                    const url = this.shareUrl(id);
+                    if (navigator.share) {
+                        navigator.share({ title: 'Notepad Sharing', url }).catch(() => {});
+                    } else {
+                        this.copyToClipboard(url);
+                    }
+                },
+                handleShareLink() {
+                    const match = window.location.pathname.match(/^\/n\/([a-zA-Z0-9]+)/);
+                    if (match) {
+                        this.viewNote(match[1]);
+                        return true;
+                    }
+                    return false;
+                }
+            };
+        }
+    </script>
+</body>
 </html>
