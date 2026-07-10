@@ -68,26 +68,26 @@
         .section-header { display: flex; align-items: flex-end; justify-content: space-between; margin: 30px 0 14px; }
         .section-header h2 { font-size: 21px; font-weight: 800; }
         .section-header .muted { font-size: 13px; color: var(--text-muted); display: block; margin-top: 2px; }
-        .link-action { font-size: 14px; font-weight: 700; color: var(--blue); text-decoration: none; }
+        .link-action { font-size: 14px; font-weight: 700; color: var(--blue); text-decoration: none; cursor: pointer; }
         .note-grid { display: flex; flex-direction: column; gap: 14px; }
         .note-card { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; }
         .note-card:hover { box-shadow: var(--shadow); border-color: transparent; transform: translateY(-1px); }
         .share-icon-btn {
-    position: absolute;
-    top: 60px;   /* sebelumnya 14px */
-    right: 14px;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    border: 1px solid var(--border);
-    background: var(--blue-light);
-    color: var(--blue);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 2;
-    transition: background 0.15s ease, transform 0.15s ease;
+            position: absolute;
+            top: 60px;
+            right: 14px;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: var(--blue-light);
+            color: var(--blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 2;
+            transition: background 0.15s ease, transform 0.15s ease;
         }
         .share-icon-btn:hover { background: var(--blue); color: white; transform: scale(1.06); }
         .share-icon-btn svg { width: 16px; height: 16px; }
@@ -98,6 +98,7 @@
         .badge.key { background: var(--blue-light); color: var(--blue); font-family: "Courier New", monospace; }
         .badge.public { background: var(--green-light); color: var(--green); }
         .badge.private { background: var(--amber-light); color: var(--amber); }
+        .badge.owner { background: var(--blue-light); color: var(--blue); }
         .note-card-title { font-size: 16.5px; font-weight: 700; margin-bottom: 6px; }
         .note-card-excerpt { font-size: 14px; color: var(--text-muted); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .note-card-footer { display: flex; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--text-muted); }
@@ -107,8 +108,8 @@
         .editor-header-left { display: flex; align-items: center; gap: 10px; }
         .editor-header-right { display: flex; gap: 8px; }
         .field-label { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin: 22px 0 8px; }
-        input[type="text"], input[type="password"], textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); color: var(--text); font-size: 15px; padding: 13px 16px; outline: none; transition: border-color 0.15s; }
-        input[type="text"]:focus, input[type="password"]:focus, textarea:focus { border-color: var(--blue); }
+        input[type="text"], input[type="password"], input[type="email"], textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); color: var(--text); font-size: 15px; padding: 13px 16px; outline: none; transition: border-color 0.15s; }
+        input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus, textarea:focus { border-color: var(--blue); }
         textarea { min-height: 200px; resize: vertical; margin-top: 10px; font-family: inherit; }
         .visibility-toggle { display: flex; background: var(--bg); border-radius: var(--radius-pill); padding: 4px; gap: 4px; }
         .vis-btn { flex: 1; border: none; background: none; padding: 12px; border-radius: var(--radius-pill); font-weight: 700; font-size: 14.5px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; }
@@ -140,17 +141,32 @@
         .profile-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-top: 18px; text-align: center; }
         .profile-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--blue-light); color: var(--blue); font-size: 26px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
         .footer-note { text-align: center; color: var(--text-muted); font-size: 12.5px; margin: 36px 0 12px; }
+        .auth-container { max-width: 400px; margin: 30px auto; }
+        .auth-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 30px; }
+        .auth-card .field-label:first-child { margin-top: 0; }
+        .auth-switch { margin-top: 16px; text-align: center; font-size: 14px; color: var(--text-muted); }
+        .auth-switch a { color: var(--blue); font-weight: 700; cursor: pointer; text-decoration: none; }
+        .user-badge { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-muted); }
+        .user-badge .email { font-weight: 600; color: var(--text); }
+        .logout-btn { background: none; border: none; color: var(--red); font-weight: 700; cursor: pointer; font-size: 13px; }
+        .logout-btn:hover { text-decoration: underline; }
+        .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body x-data="notepadApp()" x-init="init()" :class="{ 'dark': darkMode }">
     <!-- ========== Topbar ========== -->
     <header class="topbar">
         <div class="topbar-inner">
-            <button class="brand" @click="view = 'home'; fetchRecentPublic()">
+            <button class="brand" @click="goHome()">
                 <div class="brand-icon">📄</div>
                 <span class="brand-name">Notepad Sharing</span>
             </button>
             <div class="topbar-actions">
+                <div class="user-badge" x-show="isAuthenticated">
+                    <span class="email" x-text="userEmail"></span>
+                    <button class="logout-btn" @click="logout()">Logout</button>
+                </div>
                 <button class="dark-toggle" @click="toggleDark()" aria-label="Ubah tema">
                     <span class="thumb" x-text="darkMode ? '🌙' : '☀️'"></span>
                 </button>
@@ -176,12 +192,41 @@
             <nav class="menu-links">
                 <a href="#" @click.prevent="menuOpen = false">Features</a>
                 <a href="#" @click.prevent="menuOpen = false">Pricing</a>
+                <a href="#" @click.prevent="menuOpen = false; view = 'auth'">Login / Register</a>
             </nav>
-            <button class="btn btn-primary btn-block" @click="toast('Login belum tersedia di versi ini 🙂'); menuOpen = false">Login</button>
+            <button class="btn btn-primary btn-block" @click="menuOpen = false; view = 'auth'">Login</button>
         </div>
     </div>
 
     <main class="page">
+        <!-- ========== AUTH ========== -->
+        <section x-show="view === 'auth'">
+            <div class="auth-container">
+                <div class="auth-card">
+                    <h2 x-text="authMode === 'login' ? 'Login' : 'Daftar Akun'" style="font-size:24px; font-weight:800; margin-bottom:8px;"></h2>
+                    <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;" x-text="authMode === 'login' ? 'Masuk ke akun Anda' : 'Buat akun baru untuk menyimpan catatan'"></p>
+
+                    <div class="field-label">Email</div>
+                    <input type="email" x-model="authEmail" placeholder="email@example.com" />
+
+                    <div class="field-label" style="margin-top:16px;">Password</div>
+                    <input type="password" x-model="authPassword" placeholder="Masukkan password" />
+
+                    <button class="btn btn-primary btn-block" @click="handleAuth()" :disabled="authLoading" style="margin-top:20px;">
+                        <span x-show="authLoading" class="loading-spinner"></span>
+                        <span x-text="authMode === 'login' ? 'Login' : 'Daftar'"></span>
+                    </button>
+
+                    <div class="auth-switch">
+                        <span x-text="authMode === 'login' ? 'Belum punya akun?' : 'Sudah punya akun?'"></span>
+                        <a @click="authMode = authMode === 'login' ? 'register' : 'login'">
+                            <span x-text="authMode === 'login' ? 'Daftar' : 'Login'"></span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- ========== HOME ========== -->
         <section x-show="view === 'home'">
             <div class="hero">
@@ -193,12 +238,43 @@
                     <input type="text" x-model="searchKey" placeholder="Masukkan kode catatan..." maxlength="32" @keydown.enter="openByKey()" />
                     <button class="btn btn-primary" @click="openByKey()">Buka →</button>
                 </div>
-                
-                </div>
             </div>
-            <div class="section-header">
+
+            <!-- My Notes (if authenticated) -->
+            <template x-if="isAuthenticated">
+                <div>
+                    <div class="section-header">
+                        <div><h2>Catatan Saya</h2><span class="muted" x-text="myNotes.length + ' catatan'"></span></div>
+                        <button class="btn btn-secondary" @click="view = 'create'; resetForm()">+ Buat</button>
+                    </div>
+                    <div class="note-grid">
+                        <template x-if="myNotes.length === 0">
+                            <div class="empty-state">Belum ada catatan. Buat catatan pertama!</div>
+                        </template>
+                        <template x-for="(n, i) in myNotes" :key="n.id">
+                            <div class="note-card" @click="viewNote(n.id)">
+                                <div class="note-card-top">
+                                    <div class="note-icon" :style="'background:' + iconBgs[i % iconBgs.length]" x-text="icons[i % icons.length]"></div>
+                                    <div class="note-card-badges">
+                                        <span class="badge key" x-text="n.id.slice(0,4)"></span>
+                                        <span class="badge" :class="n.mode" x-text="n.mode === 'public' ? '🌍 Public' : '🔒 Private'"></span>
+                                        <span class="badge owner">👤 Owner</span>
+                                    </div>
+                                </div>
+                                <h3 class="note-card-title" x-text="n.title"></h3>
+                                <div class="note-card-footer">
+                                    <span x-text="'🕐 ' + timeAgo(n.created_at)"></span>
+                                    <span></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Public Notes -->
+            <div class="section-header" style="margin-top:20px;">
                 <div><h2>Catatan Publik Terbaru</h2><span class="muted" x-text="recentPublic.length + ' catatan publik'"></span></div>
-                <a href="#" class="link-action" @click.prevent="view = 'list'; fetchList()">Lihat semua ›</a>
             </div>
             <div class="note-grid">
                 <template x-if="recentPublic.length === 0">
@@ -229,7 +305,7 @@
         <section x-show="view === 'create'">
             <div class="editor-header">
                 <div class="editor-header-left">
-                    <button class="icon-btn" @click="view = 'home'; fetchRecentPublic()">
+                    <button class="icon-btn" @click="goHome()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
                     </button>
                     <div class="brand-icon small">📄</div>
@@ -239,23 +315,35 @@
                     <button class="icon-btn primary" @click="createNote()" :disabled="saving" title="Simpan catatan">💾</button>
                 </div>
             </div>
+
+            <template x-if="!isAuthenticated">
+                <div class="visibility-banner public" style="margin-bottom:16px;">
+                    ⚠️ Anda belum login. Catatan akan dibuat tanpa pemilik. <a @click="view='auth'" style="color:var(--blue); font-weight:700; cursor:pointer;">Login</a> untuk menyimpan catatan secara permanen.
+                </div>
+            </template>
+
             <div class="field-label">Judul Catatan</div>
             <input type="text" x-model="form.title" placeholder="Beri judul catatanmu..." maxlength="200" />
+
             <div class="field-label">Visibilitas</div>
             <div class="visibility-toggle">
                 <button class="vis-btn public" :class="{ active: form.mode === 'public' }" data-mode="public" @click="setMode('public')">🌍 Public</button>
                 <button class="vis-btn private" :class="{ active: form.mode === 'private' }" data-mode="private" @click="setMode('private')">🔒 Private</button>
             </div>
             <div :class="'visibility-banner ' + form.mode" x-text="form.mode === 'public' ? '🌍 Catatan publik — siapa saja dengan link bisa membuka tanpa password.' : '🔒 Catatan private — dibutuhkan password untuk membuka.'"></div>
+
             <div x-show="form.mode === 'private'" style="margin-top:14px;">
-                <input :type="showPassword ? 'text' : 'password'" x-model="form.password" placeholder="Buat password untuk catatan ini..." />
-                <button class="eye-btn" @click="showPassword = !showPassword" style="position:relative; right:30px; background:none; border:none; cursor:pointer;">👁️</button>
+                <div class="field-label">Password Catatan</div>
+                <input type="password" x-model="form.password" placeholder="Buat password untuk catatan ini (min. 4 karakter)" />
             </div>
+
             <textarea x-model="form.content" placeholder="Mulai tulis catatanmu di sini..." @keydown.ctrl.enter="createNote()"></textarea>
+
             <div class="btn-group">
                 <button class="btn btn-primary" @click="createNote()" :disabled="saving" style="flex:1">✨ Buat Catatan</button>
                 <button class="btn btn-secondary" @click="view = 'list'; fetchList()">📋 Semua Catatan</button>
             </div>
+
             <!-- Hasil setelah membuat -->
             <div x-show="resultNote" class="note-view-card" style="margin-top:20px;">
                 <span class="badge" :class="resultNote.mode" x-text="resultNote.mode === 'public' ? '🌍 Public' : '🔒 Private'"></span>
@@ -285,11 +373,15 @@
                 </template>
                 <template x-for="(n, i) in notes" :key="n.id">
                     <div class="note-card" @click="viewNote(n.id)">
+                        <button class="share-icon-btn" @click.stop="shareNote(n.id)" title="Bagikan catatan">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/></svg>
+                        </button>
                         <div class="note-card-top">
                             <div class="note-icon" :style="'background:' + iconBgs[i % iconBgs.length]" x-text="icons[i % icons.length]"></div>
                             <div class="note-card-badges">
                                 <span class="badge key" x-text="n.id.slice(0,4)"></span>
                                 <span class="badge" :class="n.mode" x-text="n.mode === 'public' ? '🌍 Public' : '🔒 Private'"></span>
+                                <span class="badge owner" x-show="n.is_owner">👤 Owner</span>
                             </div>
                         </div>
                         <h3 class="note-card-title" x-text="n.title"></h3>
@@ -306,49 +398,19 @@
             </div>
         </section>
 
-        <!-- ========== SHARE ========== -->
-        <section x-show="view === 'share'">
-            <div class="section-header" style="margin-top:15px;">
-                <div><h2>Bagikan Catatan</h2><span class="muted" x-text="notes.length + ' catatan'"></span></div>
-                <button class="btn btn-secondary" @click="view = 'create'; resetForm()">+ Catatan</button>
-            </div>
-            <div class="note-grid">
-                <template x-if="notes.length === 0">
-                    <div class="empty-state">Belum ada catatan untuk dibagikan.</div>
-                </template>
-                <template x-for="(n, i) in notes" :key="n.id">
-                    <div class="note-card" @click="viewNote(n.id)">
-                        <button class="share-icon-btn" @click.stop="shareNote(n.id)" title="Bagikan catatan">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/></svg>
-                        </button>
-                        <div class="note-card-top">
-                            <div class="note-icon" :style="'background:' + iconBgs[i % iconBgs.length]" x-text="icons[i % icons.length]"></div>
-                            <div class="note-card-badges">
-                                <span class="badge key" x-text="n.id.slice(0,4)"></span>
-                                <span class="badge" :class="n.mode" x-text="n.mode === 'public' ? '🌍 Public' : '🔒 Private'"></span>
-                            </div>
-                        </div>
-                        <h3 class="note-card-title" x-text="n.title"></h3>
-                        <div class="note-card-footer">
-                            <span x-text="'🕐 ' + timeAgo(n.created_at)"></span>
-                            <span></span>
-                        </div>
-                    </div>
-                </template>
-            </div>
-        </section>
-
         <!-- ========== VIEW ========== -->
         <section x-show="view === 'view'">
             <div class="editor-header">
                 <div class="editor-header-left">
-                    <button class="icon-btn" @click="view = 'home'; fetchRecentPublic()">
+                    <button class="icon-btn" @click="goHome()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="20" x2="5" y2="20"/><polyline points="12 19 5 12 12 5"/></svg>
                     </button>
                     <div class="brand-icon small">📄</div>
                     <span class="brand-name">Notepad Sharing</span>
                 </div>
             </div>
+
+            <!-- Note content -->
             <template x-if="viewedNote">
                 <div class="note-view-card">
                     <div style="display:flex; justify-content:space-between;">
@@ -358,18 +420,20 @@
                                 <span class="badge" :class="viewedNote.mode" x-text="viewedNote.mode === 'public' ? '🌍 Public' : '🔒 Private'"></span>
                                 <span class="badge key" x-text="viewedNote.id"></span>
                                 <span x-text="' · ' + (viewedNote.content?.trim().split(/\s+/).filter(Boolean).length || 0) + ' kata'"></span>
+                                <span class="badge owner" x-show="viewedNote.is_owner" style="margin-left:6px;">👤 Owner</span>
                             </div>
                         </div>
                     </div>
                     <div class="note-view-content" x-text="viewedNote.content"></div>
                     <div class="btn-group">
                         <button class="btn btn-secondary" @click="copyToClipboard(shareUrl(viewedNote.id))">🔗 Salin link</button>
-                        <button class="btn btn-secondary" @click="editNote(viewedNote.id)">✏️ Edit</button>
-                        <button class="btn btn-danger" @click="deleteNote(viewedNote.id)">🗑️ Hapus</button>
-                        <button class="btn btn-secondary" @click="view = 'home'; fetchRecentPublic()">← Kembali</button>
+                        <button class="btn btn-secondary" @click="editNote(viewedNote.id)" x-show="viewedNote.is_owner">✏️ Edit</button>
+                        <button class="btn btn-danger" @click="deleteNote(viewedNote.id)" x-show="viewedNote.is_owner">🗑️ Hapus</button>
+                        <button class="btn btn-secondary" @click="goHome()">← Kembali</button>
                     </div>
                 </div>
             </template>
+
             <!-- Locked state -->
             <template x-if="lockedNote">
                 <div class="note-view-card">
@@ -382,10 +446,11 @@
                     <input type="password" x-model="unlockPassword" placeholder="Masukkan password" style="margin-top:12px;" />
                     <div class="btn-group">
                         <button class="btn btn-primary" @click="unlockNote(lockedNote.id)">🔓 Buka</button>
-                        <button class="btn btn-secondary" @click="view = 'home'; fetchRecentPublic()">← Kembali</button>
+                        <button class="btn btn-secondary" @click="goHome()">← Kembali</button>
                     </div>
                 </div>
             </template>
+
             <!-- Edit state -->
             <template x-if="editingNote">
                 <div class="note-view-card">
@@ -395,10 +460,10 @@
                     <textarea x-model="editForm.content" style="min-height:220px;"></textarea>
                     <div x-show="editingNote.mode === 'private'">
                         <div class="field-label">Password (untuk verifikasi)</div>
-                        <input type="password" x-model="editForm.password" placeholder="Masukkan password" />
+                        <input type="password" x-model="editForm.password" placeholder="Masukkan password catatan" />
                     </div>
                     <div class="btn-group">
-                        <button class="btn btn-primary" @click="saveEdit()">💾 Simpan</button>
+                        <button class="btn btn-primary" @click="saveEdit()" :disabled="saving">💾 Simpan</button>
                         <button class="btn btn-secondary" @click="cancelEdit()">↩️ Batal</button>
                     </div>
                 </div>
@@ -409,30 +474,41 @@
         <section x-show="view === 'profile'">
             <div class="profile-card">
                 <div class="profile-avatar">👤</div>
-                <h3>Tanpa akun diperlukan</h3>
-                <p>Notepad Sharing sengaja dibuat tanpa sistem login. Setiap catatan punya kode unik sendiri — simpan kode atau link-nya untuk mengakses catatan itu lagi nanti.</p>
+                <h3 x-text="isAuthenticated ? userEmail : 'Tanpa akun'"></h3>
+                <p x-text="isAuthenticated ? 'Akun terdaftar — semua catatan tersimpan di server.' : 'Notepad Sharing sengaja dibuat tanpa sistem login. Setiap catatan punya kode unik sendiri — simpan kode atau link-nya untuk mengakses catatan itu lagi nanti.'"></p>
                 <div class="profile-info-list" style="margin-top:22px; text-align:left;">
-                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md); margin-bottom:8px;"><span>Mode publik</span><span>🌍 Bisa dibuka siapa saja dengan link</span></div>
-                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md); margin-bottom:8px;"><span>Mode private</span><span>🔒 Dilindungi password</span></div>
-                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md);"><span>Penyimpanan</span><span>☁️ Tersimpan di server Notepad Sharing</span></div>
+                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md); margin-bottom:8px;">
+                        <span>Mode publik</span>
+                        <span>🌍 Bisa dibuka siapa saja dengan link</span>
+                    </div>
+                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md); margin-bottom:8px;">
+                        <span>Mode private</span>
+                        <span>🔒 Dilindungi password (terenkripsi AES-256-GCM)</span>
+                    </div>
+                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md);">
+                        <span>Penyimpanan</span>
+                        <span>☁️ Tersimpan di server Notepad Sharing</span>
+                    </div>
+                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md); margin-top:8px;">
+                        <span>Keamanan</span>
+                        <span>🔐 JWT + Refresh Token Rotation</span>
+                    </div>
                 </div>
+                <button class="btn btn-danger" style="margin-top:20px;" x-show="isAuthenticated" @click="logout()">🚪 Logout</button>
             </div>
         </section>
     </main>
 
     <!-- FAB -->
-    <button class="fab" x-show="view === 'list'" @click="view = 'create'; resetForm()">+</button>
+    <button class="fab" x-show="view === 'list' || view === 'home'" @click="view = 'create'; resetForm()">+</button>
 
     <!-- Bottom nav -->
     <nav class="bottom-nav">
-        <button class="nav-item" :class="{ active: view === 'home' }" @click="view = 'home'; fetchRecentPublic()">
+        <button class="nav-item" :class="{ active: view === 'home' }" @click="goHome()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg> Home
         </button>
         <button class="nav-item" :class="{ active: view === 'list' }" @click="view = 'list'; fetchList()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg> Notes
-        </button>
-        <button class="nav-item" :class="{ active: view === 'share' }" @click="view = 'share'; fetchList()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/></svg> Share
         </button>
         <button class="nav-item" :class="{ active: view === 'profile' }" @click="view = 'profile'">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg> Profile
@@ -447,7 +523,7 @@
         dayjs.locale('id');
 
         function notepadApp() {
-            const API = '/api/notes';
+            const API = '/api';
             const icons = ["🗒️","📗","🗂️","📘","🧾","📙"];
             const iconBgs = ["#eef2ff","#e9f9f1","#fdf1e3","#f0f4ff","#fff0f5","#eefcf7"];
 
@@ -456,116 +532,268 @@
                 view: 'home',
                 darkMode: false,
                 menuOpen: false,
-                showPassword: false,
                 saving: false,
                 toastMsg: '',
                 toastType: 'success',
+
+                // Auth
+                authMode: 'login', // 'login' | 'register'
+                authEmail: '',
+                authPassword: '',
+                authLoading: false,
+                accessToken: '',
+                userEmail: '',
+                isAuthenticated: false,
+
                 // Data
                 searchKey: '',
                 recentPublic: [],
                 notes: [],
+                myNotes: [],
                 listOffset: 0,
+
                 // Form
                 form: { title: '', content: '', mode: 'public', password: '' },
                 resultNote: null,
+
                 // View note
                 viewedNote: null,
                 lockedNote: null,
                 unlockPassword: '',
                 editingNote: null,
                 editForm: { title: '', content: '', password: '' },
-                // Constants for templates
+
+                // Constants
                 icons,
                 iconBgs,
 
                 init() {
                     const saved = localStorage.getItem('notepad-theme');
                     this.darkMode = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+                    // Check for saved token
+                    const token = localStorage.getItem('access_token');
+                    const email = localStorage.getItem('user_email');
+                    if (token && email) {
+                        this.accessToken = token;
+                        this.userEmail = email;
+                        this.isAuthenticated = true;
+                    }
+
                     this.handleShareLink();
-                    if (this.view === 'home') this.fetchRecentPublic();
+                    if (this.view === 'home') {
+                        this.fetchRecentPublic();
+                        if (this.isAuthenticated) this.fetchMyNotes();
+                    }
                 },
+
                 toggleDark() {
                     this.darkMode = !this.darkMode;
                     localStorage.setItem('notepad-theme', this.darkMode ? 'dark' : 'light');
                 },
+
                 toast(msg, type = 'success') {
                     this.toastMsg = msg;
                     this.toastType = type;
                     clearTimeout(this._toastTimer);
                     this._toastTimer = setTimeout(() => this.toastMsg = '', 3000);
                 },
+
                 timeAgo(dateStr) {
-                    return dayjs(dateStr).fromNow();
+                    return dateStr ? dayjs(dateStr).fromNow() : '-';
                 },
+
                 shareUrl(id) {
                     return window.location.origin + '/n/' + id;
                 },
-                escapeHtml(text) {
-                    const div = document.createElement('div');
-                    div.textContent = text ?? '';
-                    return div.innerHTML;
-                },
+
                 copyToClipboard(text) {
                     if (navigator.clipboard) {
-                        navigator.clipboard.writeText(text).then(() => this.toast('📋 Link disalin!')).catch(() => fallbackCopy(text, this));
+                        navigator.clipboard.writeText(text).then(() => this.toast('📋 Link disalin!')).catch(() => this.fallbackCopy(text));
                     } else {
-                        fallbackCopy(text, this);
-                    }
-                    function fallbackCopy(t, ctx) {
-                        const input = document.createElement('input');
-                        input.value = t;
-                        document.body.appendChild(input);
-                        input.select();
-                        try { document.execCommand('copy'); ctx.toast('📋 Link disalin!'); } catch (e) { ctx.toast('Gagal menyalin', 'error'); }
-                        document.body.removeChild(input);
+                        this.fallbackCopy(text);
                     }
                 },
+                fallbackCopy(text) {
+                    const input = document.createElement('input');
+                    input.value = text;
+                    document.body.appendChild(input);
+                    input.select();
+                    try { document.execCommand('copy'); this.toast('📋 Link disalin!'); } catch (e) { this.toast('Gagal menyalin', 'error'); }
+                    document.body.removeChild(input);
+                },
+
                 setMode(mode) {
                     this.form.mode = mode;
                 },
+
                 resetForm() {
                     this.form = { title: '', content: '', mode: 'public', password: '' };
                     this.resultNote = null;
-                    this.showPassword = false;
                 },
 
-                // --- API calls ---
-                async fetchRecentPublic() {
+                goHome() {
+                    this.view = 'home';
+                    this.fetchRecentPublic();
+                    if (this.isAuthenticated) this.fetchMyNotes();
+                },
+
+                // ============ AUTH ============
+                async handleAuth() {
+                    if (!this.authEmail || !this.authPassword) {
+                        return this.toast('Isi email dan password', 'error');
+                    }
+                    this.authLoading = true;
                     try {
-                        const res = await fetch(`${API}?limit=50&offset=0`);
+                        const endpoint = this.authMode === 'login' ? '/auth/login' : '/auth/register';
+                        const res = await fetch(API + endpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                email: this.authEmail,
+                                password: this.authPassword
+                            }),
+                            credentials: 'include' // for cookie-based refresh token
+                        });
                         const data = await res.json();
-                        if (!res.ok) throw new Error(data.error);
-                        this.recentPublic = (data.notes || []).filter(n => n.mode === 'public');
-                        // fetch full content for excerpts
-                        for (let n of this.recentPublic.slice(0,4)) {
-                            try {
-                                const r2 = await fetch(`${API}/${n.id}`);
-                                const d2 = await r2.json();
-                                n.content = d2.content || '';
-                            } catch (e) { n.content = ''; }
-                        }
+                        if (!res.ok) throw new Error(data.error || 'Auth failed');
+
+                        this.accessToken = data.access_token;
+                        this.userEmail = this.authEmail;
+                        this.isAuthenticated = true;
+                        localStorage.setItem('access_token', this.accessToken);
+                        localStorage.setItem('user_email', this.userEmail);
+
+                        this.toast('✅ ' + (this.authMode === 'login' ? 'Login berhasil!' : 'Registrasi berhasil!'));
+                        this.authEmail = '';
+                        this.authPassword = '';
+                        this.view = 'home';
+                        this.fetchRecentPublic();
+                        this.fetchMyNotes();
                     } catch (e) {
-                        this.recentPublic = [];
                         this.toast(e.message, 'error');
+                    } finally {
+                        this.authLoading = false;
                     }
                 },
+
+                async logout() {
+                    try {
+                        await fetch(API + '/auth/logout', {
+                            method: 'POST',
+                            credentials: 'include'
+                        });
+                    } catch (e) {
+                        // ignore logout errors
+                    }
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('user_email');
+                    this.accessToken = '';
+                    this.userEmail = '';
+                    this.isAuthenticated = false;
+                    this.myNotes = [];
+                    this.toast('👋 Logout berhasil');
+                    this.view = 'home';
+                },
+
+                // ============ API helpers ============
+                async request(path, options = {}) {
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    };
+                    if (this.accessToken) {
+                        headers['Authorization'] = 'Bearer ' + this.accessToken;
+                    }
+
+                    const res = await fetch(API + path, {
+                        ...options,
+                        headers,
+                        credentials: 'include'
+                    });
+
+                    // If token expired, try refresh
+                    if (res.status === 401 && this.isAuthenticated) {
+                        try {
+                            const refreshRes = await fetch(API + '/auth/refresh', {
+                                method: 'POST',
+                                credentials: 'include'
+                            });
+                            if (refreshRes.ok) {
+                                const data = await refreshRes.json();
+                                this.accessToken = data.access_token;
+                                localStorage.setItem('access_token', this.accessToken);
+                                // Retry original request
+                                const retryRes = await fetch(API + path, {
+                                    ...options,
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        ...options.headers,
+                                        'Authorization': 'Bearer ' + this.accessToken
+                                    },
+                                    credentials: 'include'
+                                });
+                                if (!retryRes.ok) throw await retryRes.json();
+                                return retryRes;
+                            }
+                            // Refresh failed
+                            this.logout();
+                            throw new Error('Sesi berakhir. Silakan login ulang.');
+                        } catch (e) {
+                            throw e;
+                        }
+                    }
+
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.error || 'Request failed');
+                    }
+                    return res;
+                },
+
+                // ============ NOTES API ============
+                async fetchRecentPublic() {
+                    try {
+                        const res = await fetch(API + '/notes?limit=50');
+                        const data = await res.json();
+                        this.recentPublic = (data.notes || []).filter(n => n.mode === 'public');
+                    } catch (e) {
+                        this.recentPublic = [];
+                        console.error(e);
+                    }
+                },
+
+                async fetchMyNotes() {
+                    if (!this.isAuthenticated) return;
+                    try {
+                        const res = await this.request('/notes?limit=50');
+                        const data = await res.json();
+                        this.myNotes = data.notes || [];
+                    } catch (e) {
+                        this.myNotes = [];
+                        console.error(e);
+                    }
+                },
+
                 async fetchList() {
                     try {
-                        const res = await fetch(`${API}?limit=20&offset=${this.listOffset}`);
+                        const res = await this.request(`/notes?limit=20&offset=${this.listOffset}`);
                         const data = await res.json();
-                        if (!res.ok) throw new Error(data.error);
                         this.notes = data.notes || [];
                     } catch (e) {
                         this.notes = [];
                         this.toast(e.message, 'error');
                     }
                 },
+
                 nextPage() { this.listOffset += 20; this.fetchList(); },
                 prevPage() { this.listOffset = Math.max(0, this.listOffset - 20); this.fetchList(); },
 
                 async createNote() {
                     if (!this.form.content.trim()) return this.toast('Isi catatan tidak boleh kosong', 'error');
-                    if (this.form.mode === 'private' && this.form.password.length < 4) return this.toast('Password minimal 4 karakter', 'error');
+                    if (this.form.mode === 'private' && this.form.password.length < 4) {
+                        return this.toast('Password minimal 4 karakter', 'error');
+                    }
                     this.saving = true;
                     try {
                         const payload = {
@@ -573,42 +801,58 @@
                             title: this.form.title || 'Catatan tanpa judul',
                             content: this.form.content,
                         };
-                        if (this.form.mode === 'private') payload.password = this.form.password;
-                        const res = await fetch(API, {
+                        if (this.form.mode === 'private') {
+                            payload.password = this.form.password;
+                        }
+
+                        const res = await this.request('/notes', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload),
                         });
                         const data = await res.json();
-                        if (!res.ok) throw new Error(data.error);
                         this.resultNote = data;
                         this.form.title = '';
                         this.form.content = '';
                         this.form.password = '';
                         this.toast('✅ Catatan berhasil dibuat!');
+                        if (this.isAuthenticated) this.fetchMyNotes();
+                        this.fetchRecentPublic();
                     } catch (e) {
                         this.toast(e.message, 'error');
                     } finally {
                         this.saving = false;
                     }
                 },
+
                 openByKey() {
                     const key = this.searchKey.trim();
                     if (!key) return this.toast('Masukkan kode catatan', 'error');
                     this.viewNote(key);
                 },
+
                 async viewNote(id) {
                     this.view = 'view';
                     this.viewedNote = null;
                     this.lockedNote = null;
                     this.editingNote = null;
                     try {
-                        const res = await fetch(`${API}/${id}`);
+                        const res = await fetch(API + '/notes/' + id);
                         const data = await res.json();
-                        if (!res.ok) throw new Error(data.error);
+                        if (!res.ok) throw new Error(data.error || 'Catatan tidak ditemukan');
                         if (data.locked) {
                             this.lockedNote = data;
                             return;
+                        }
+                        // Check if user owns this note
+                        if (this.isAuthenticated && data.is_owner === undefined) {
+                            // Try to fetch with auth to get owner status
+                            try {
+                                const authRes = await this.request('/notes/' + id);
+                                const authData = await authRes.json();
+                                data.is_owner = authData.is_owner || false;
+                            } catch (e) {
+                                data.is_owner = false;
+                            }
                         }
                         this.viewedNote = data;
                     } catch (e) {
@@ -616,17 +860,26 @@
                         this.view = 'home';
                     }
                 },
+
                 async unlockNote(id) {
                     if (!this.unlockPassword) return this.toast('Masukkan password', 'error');
                     try {
-                        const res = await fetch(`${API}/${id}/unlock`, {
+                        const res = await fetch(API + '/notes/' + id + '/unlock', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ password: this.unlockPassword }),
                         });
                         const data = await res.json();
-                        if (!res.ok) throw new Error(data.error);
+                        if (!res.ok) throw new Error(data.error || 'Password salah');
                         data.mode = 'private';
+                        // Check if user owns this note
+                        if (this.isAuthenticated) {
+                            try {
+                                const authRes = await this.request('/notes/' + id);
+                                const authData = await authRes.json();
+                                data.is_owner = authData.is_owner || false;
+                            } catch (e) {}
+                        }
                         this.viewedNote = data;
                         this.lockedNote = null;
                         this.unlockPassword = '';
@@ -635,71 +888,82 @@
                         this.toast(e.message, 'error');
                     }
                 },
+
                 editNote(id) {
                     const note = this.viewedNote;
-                    if (!note) return;
+                    if (!note || !note.is_owner) return this.toast('Anda tidak memiliki akses edit', 'error');
                     this.editingNote = note;
                     this.editForm = { title: note.title, content: note.content, password: '' };
                     this.viewedNote = null;
                 },
+
                 cancelEdit() {
                     if (this.editingNote) {
                         this.viewNote(this.editingNote.id);
                     }
                     this.editingNote = null;
                 },
+
                 async saveEdit() {
                     const note = this.editingNote;
                     if (!note) return;
                     if (!this.editForm.content.trim()) return this.toast('Isi catatan tidak boleh kosong', 'error');
-                    const payload = { title: this.editForm.title || 'Catatan tanpa judul', content: this.editForm.content };
+
+                    const payload = {
+                        title: this.editForm.title || 'Catatan tanpa judul',
+                        content: this.editForm.content
+                    };
                     if (note.mode === 'private') {
                         if (!this.editForm.password) return this.toast('Masukkan password untuk verifikasi', 'error');
                         payload.password = this.editForm.password;
                     }
+
+                    this.saving = true;
                     try {
-                        const res = await fetch(`${API}/${note.id}`, {
+                        const res = await this.request('/notes/' + note.id, {
                             method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload),
                         });
                         const data = await res.json();
-                        if (!res.ok) throw new Error(data.error);
                         this.toast('✅ Catatan berhasil diupdate!');
                         this.editingNote = null;
+                        if (this.isAuthenticated) this.fetchMyNotes();
                         this.viewNote(note.id);
                     } catch (e) {
                         this.toast(e.message, 'error');
+                    } finally {
+                        this.saving = false;
                     }
                 },
+
                 async deleteNote(id) {
                     if (!confirm('Yakin ingin menghapus catatan ini?')) return;
+
+                    // Check if private note needs password
                     let password = null;
+                    if (this.viewedNote && this.viewedNote.mode === 'private') {
+                        password = prompt('Masukkan password untuk menghapus:');
+                        if (!password) return;
+                    } else if (this.lockedNote) {
+                        password = prompt('Masukkan password untuk menghapus:');
+                        if (!password) return;
+                    }
+
                     try {
-                        const res = await fetch(`${API}/${id}`);
-                        const data = await res.json();
-                        if (data.locked || data.mode === 'private') {
-                            password = prompt('Masukkan password untuk menghapus:');
-                            if (!password) return;
-                        }
-                    } catch (e) { return this.toast(e.message, 'error'); }
-                    try {
-                        const res = await fetch(`${API}/${id}`, {
+                        const payload = password ? { password } : {};
+                        const res = await this.request('/notes/' + id, {
                             method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(password ? { password } : {}),
+                            body: JSON.stringify(payload),
                         });
-                        if (!res.ok) {
-                            const data = await res.json();
-                            throw new Error(data.error);
-                        }
                         this.toast('🗑️ Catatan berhasil dihapus');
                         this.view = 'home';
                         this.fetchRecentPublic();
+                        if (this.isAuthenticated) this.fetchMyNotes();
                     } catch (e) {
                         this.toast(e.message, 'error');
                     }
                 },
+
                 shareNote(id) {
                     const url = this.shareUrl(id);
                     if (navigator.share) {
@@ -708,6 +972,7 @@
                         this.copyToClipboard(url);
                     }
                 },
+
                 handleShareLink() {
                     const match = window.location.pathname.match(/^\/n\/([a-zA-Z0-9]+)/);
                     if (match) {
