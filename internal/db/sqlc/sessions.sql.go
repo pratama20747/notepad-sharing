@@ -45,6 +45,24 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 	return i, err
 }
 
+const deleteExpiredAndRevokedSessions = `-- name: DeleteExpiredAndRevokedSessions :execrows
+DELETE FROM sessions
+WHERE
+    expires_at < now()
+    OR (revoked_at IS NOT NULL AND revoked_at < now() - INTERVAL '1 day')
+`
+
+// Hapus session yang sudah expired ATAU sudah di-revoke lebih dari 1 hari.
+// Revoked session diberi grace period 1 hari sebelum dihapus untuk keperluan
+// audit log jika diperlukan di masa depan.
+func (q *Queries) DeleteExpiredAndRevokedSessions(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredAndRevokedSessions)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
 SELECT id, user_id, token_hash, user_agent, created_at, expires_at, revoked_at FROM sessions WHERE token_hash = $1
 `
