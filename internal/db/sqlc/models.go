@@ -6,14 +6,39 @@ package sqlc
 
 import (
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// Table for storing notes with public/private mode
 type Note struct {
-	ID        string    `json:"id"`
-	Mode      string    `json:"mode"`
-	Content   []byte    `json:"content"`
+	ID string `json:"id"`
+	// Pemilik note. List/Update/Delete hanya boleh oleh pemilik; Get/Unlock via share link tetap terbuka untuk siapapun.
+	UserID string `json:"user_id"`
+	// public: plaintext, private: nonce||ciphertext AES-GCM
+	Mode string `json:"mode"`
+	// plaintext for public, nonce||ciphertext for private
+	Content []byte `json:"content"`
+	// 16 byte random salt for private mode, empty for public
 	Salt      []byte    `json:"salt"`
+	Title     string    `json:"title"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	Title     string    `json:"title"`
+}
+
+type Session struct {
+	ID        string             `json:"id"`
+	UserID    string             `json:"user_id"`
+	TokenHash string             `json:"token_hash"`
+	UserAgent string             `json:"user_agent"`
+	CreatedAt time.Time          `json:"created_at"`
+	ExpiresAt time.Time          `json:"expires_at"`
+	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
+}
+
+type User struct {
+	ID           string    `json:"id"`
+	Email        string    `json:"email"`
+	PasswordHash string    `json:"password_hash"`
+	CreatedAt    time.Time `json:"created_at"`
 }

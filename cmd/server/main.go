@@ -1,4 +1,3 @@
-// Command server menjalankan HTTP server notepad-sharelink.
 package main
 
 import (
@@ -8,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"notepad-sharelink/internal/authutil"
 	"notepad-sharelink/internal/config"
 	"notepad-sharelink/internal/db/sqlc"
 	"notepad-sharelink/internal/handler"
@@ -40,10 +40,16 @@ func main() {
 	log.Println("berhasil konek ke database")
 
 	queries := sqlc.New(pool)
-	noteService := service.NewNoteService(queries)
-	noteHandler := handler.NewNoteHandler(noteService)
 
-	r := router.New(noteHandler)
+	jwtManager := authutil.NewJWTManager(cfg.JWTSecret, cfg.AccessTokenTTL)
+
+	noteService := service.NewNoteService(queries)
+	authService := service.NewAuthService(queries, jwtManager, cfg.RefreshTokenTTL)
+
+	noteHandler := handler.NewNoteHandler(noteService)
+	authHandler := handler.NewAuthHandler(authService)
+
+	r := router.New(noteHandler, authHandler, jwtManager)
 
 	log.Printf("server berjalan di port %s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {

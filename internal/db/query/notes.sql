@@ -1,6 +1,6 @@
 -- name: CreateNote :one
-INSERT INTO notes (id, mode, content, salt, title)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO notes (id, user_id, mode, content, salt, title)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: GetNote :one
@@ -15,8 +15,8 @@ RETURNING *;
 -- name: DeleteNote :execrows
 DELETE FROM notes WHERE id = $1;
 
--- name: ListNotes :many
-SELECT id, mode, title, created_at, updated_at FROM notes ORDER BY created_at DESC LIMIT $1 OFFSET $2;
+-- name: ListNotesByUser :many
+SELECT id, mode, title, created_at, updated_at FROM notes WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3;
 
--- name: CountNotes :one
-SELECT COUNT(*) FROM notes;
+-- name: CountNotesByUser :one
+SELECT COUNT(*) FROM notes WHERE user_id = $1;

@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"notepad-sharelink/internal/middleware"
 	"notepad-sharelink/internal/service"
 )
 
@@ -40,6 +41,8 @@ type createNoteResponse struct {
 }
 
 // Create menangani POST /api/notes.
+// Endpoint ini BUTUH LOGIN (protected oleh middleware.RequireAuth).
+// User yang login akan menjadi pemilik note (user_id dari JWT token).
 func (h *NoteHandler) Create(c *gin.Context) {
 	var req createNoteRequest
 	ctx := c.Request.Context()
@@ -68,7 +71,10 @@ func (h *NoteHandler) Create(c *gin.Context) {
 		title = "Catatan tanpa judul"
 	}
 
-	id, err := h.svc.CreateNote(ctx, req.Mode, title, req.Content, req.Password)
+	// Ambil userID dari context (di-set oleh middleware.RequireAuth)
+	userID := middleware.UserID(c)
+
+	id, err := h.svc.CreateNote(ctx, req.Mode, title, req.Content, req.Password, userID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -83,6 +89,8 @@ func (h *NoteHandler) Create(c *gin.Context) {
 }
 
 // Get menangani GET /api/notes/:id.
+// Endpoint ini PUBLIK (tanpa middleware login) — siapapun bisa akses via share link.
+//
 // Untuk note public, title & content langsung dikembalikan.
 // Untuk note private, hanya info bahwa note "locked" yang dikembalikan
 // beserta title (plaintext); klien harus memanggil endpoint Unlock dengan password.
@@ -108,7 +116,6 @@ func (h *NoteHandler) Get(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resp)
-
 }
 
 type unlockRequest struct {
@@ -116,6 +123,8 @@ type unlockRequest struct {
 }
 
 // Unlock menangani POST /api/notes/:id/unlock untuk mode private.
+// Endpoint ini PUBLIK (tanpa middleware login) — siapapun bisa unlock dengan password note.
+// Dipakai saat user akses share link note private dan ingin membuka konten.
 func (h *NoteHandler) Unlock(c *gin.Context) {
 	id := c.Param("id")
 	ctx := c.Request.Context()
@@ -145,6 +154,9 @@ type updateNoteRequest struct {
 }
 
 // Update menangani PUT /api/notes/:id.
+// Endpoint ini BUTUH LOGIN (protected oleh middleware.RequireAuth).
+// Hanya pemilik note (user_id dari JWT token) yang bisa update note.
+// Jika user lain mencoba update, akan di-reject dengan 403 Forbidden.
 func (h *NoteHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	ctx := c.Request.Context()
@@ -163,7 +175,10 @@ func (h *NoteHandler) Update(c *gin.Context) {
 		title = "Catatan tanpa judul"
 	}
 
-	if err := h.svc.UpdateNote(ctx, id, title, req.Content, req.Password); err != nil {
+	// Ambil userID dari context (di-set oleh middleware.RequireAuth)
+	userID := middleware.UserID(c)
+
+	if err := h.svc.UpdateNote(ctx, id, title, req.Content, req.Password, userID); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -176,6 +191,9 @@ type deleteNoteRequest struct {
 }
 
 // Delete menangani DELETE /api/notes/:id.
+// Endpoint ini BUTUH LOGIN (protected oleh middleware.RequireAuth).
+// Hanya pemilik note (user_id dari JWT token) yang bisa delete note.
+// Jika user lain mencoba delete, akan di-reject dengan 403 Forbidden.
 func (h *NoteHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	ctx := c.Request.Context()
@@ -184,11 +202,14 @@ func (h *NoteHandler) Delete(c *gin.Context) {
 		return
 	}
 	var req deleteNoteRequest
-	// Body opsional untuk note public, jadi error binding sengaja diabaikan
+	// Body opsional untuk note public, sengaja abaikan binding error
 	// (mis. body kosong pada request DELETE tanpa password).
 	_ = c.ShouldBindJSON(&req)
 
-	if err := h.svc.DeleteNote(ctx, id, req.Password); err != nil {
+	// Ambil userID dari context (di-set oleh middleware.RequireAuth)
+	userID := middleware.UserID(c)
+
+	if err := h.svc.DeleteNote(ctx, id, req.Password, userID); err != nil {
 		respondError(c, err)
 		return
 	}
@@ -197,6 +218,9 @@ func (h *NoteHandler) Delete(c *gin.Context) {
 }
 
 // List menangani GET /api/notes (tanpa :id).
+// Endpoint ini BUTUH LOGIN (protected oleh middleware.RequireAuth).
+// User hanya melihat note punya mereka sendiri (filter by user_id dari JWT token).
+// Note user lain TIDAK muncul di list.
 func (h *NoteHandler) List(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "20")
 	offsetStr := c.DefaultQuery("offset", "0")
@@ -205,6 +229,7 @@ func (h *NoteHandler) List(c *gin.Context) {
 		c.JSON(499, gin.H{"error": "request dibatalkan"})
 		return
 	}
+
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit < 1 {
 		limit = 20
@@ -218,7 +243,10 @@ func (h *NoteHandler) List(c *gin.Context) {
 		offset = 0
 	}
 
-	notes, err := h.svc.ListNotes(ctx, int32(limit), int32(offset))
+	// Ambil userID dari context (di-set oleh middleware.RequireAuth)
+	userID := middleware.UserID(c)
+
+	notes, err := h.svc.ListNotes(ctx, userID, int32(limit), int32(offset))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -232,7 +260,9 @@ func respondError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, service.ErrNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "note tidak ditemukan"})
-	case errors.Is(err, context.Canceled): // ← TAMBAH INI
+	case errors.Is(err, service.ErrForbidden):
+		c.JSON(http.StatusForbidden, gin.H{"error": "anda tidak punya akses untuk mengubah note ini"})
+	case errors.Is(err, context.Canceled):
 		c.JSON(499, gin.H{"error": "request dibatalkan oleh client"})
 	case errors.Is(err, service.ErrWrongPassword):
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "password salah"})
@@ -240,6 +270,8 @@ func respondError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "password wajib diisi"})
 	case errors.Is(err, service.ErrInvalidMode):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "mode tidak valid"})
+	case errors.Is(err, service.ErrTitleTooLong):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "judul terlalu panjang, maksimal 200 karakter"})
 	default:
 		log.Printf("internal error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})

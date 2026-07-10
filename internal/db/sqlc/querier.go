@@ -9,11 +9,18 @@ import (
 )
 
 type Querier interface {
-	CountNotes(ctx context.Context) (int64, error)
+	CountNotesByUser(ctx context.Context, userID string) (int64, error)
 	CreateNote(ctx context.Context, arg CreateNoteParams) (Note, error)
+	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
+	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteNote(ctx context.Context, id string) (int64, error)
 	GetNote(ctx context.Context, id string) (Note, error)
-	ListNotes(ctx context.Context, arg ListNotesParams) ([]ListNotesRow, error)
+	GetSessionByTokenHash(ctx context.Context, tokenHash string) (Session, error)
+	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUserByID(ctx context.Context, id string) (User, error)
+	ListNotesByUser(ctx context.Context, arg ListNotesByUserParams) ([]ListNotesByUserRow, error)
+	RevokeSession(ctx context.Context, id string) error
+	RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error
 	UpdateNoteContent(ctx context.Context, arg UpdateNoteContentParams) (Note, error)
 }
 
