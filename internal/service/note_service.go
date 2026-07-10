@@ -27,6 +27,7 @@ var (
 	ErrInvalidMode    = errors.New("mode tidak valid")
 	ErrPasswordNeeded = errors.New("password wajib diisi untuk note mode private")
 	ErrTitleTooLong   = errors.New("judul terlalu panjang, maksimal 200 karakter")
+	ErrForbidden      = errors.New("anda tidak punya akses ke note ini")
 )
 
 // NoteSummary digunakan untuk response list notes ringan — tanpa content/salt.
@@ -53,7 +54,8 @@ func NewNoteService(q *sqlc.Queries) *NoteService {
 // Title selalu disimpan sebagai plaintext (TEXT) agar judul private note tetap
 // terlihat di daftar catatan dan saat share link.
 // Content: plaintext untuk public, dienkripsi (AES-256-GCM) untuk private.
-func (s *NoteService) CreateNote(ctx context.Context, mode, title, content, password string) (string, error) {
+// Note selalu di-link ke userID yang membuat (isolasi per user).
+func (s *NoteService) CreateNote(ctx context.Context, mode, title, content, password, userID string) (string, error) {
 	if ctx.Err() != nil {
 		return "", ctx.Err()
 	}
@@ -65,17 +67,11 @@ func (s *NoteService) CreateNote(ctx context.Context, mode, title, content, pass
 		return "", ErrTitleTooLong
 	}
 
-	if ctx.Err() != nil {
-		return "", ctx.Err()
-	}
-
 	id, err := idgen.New()
 	if err != nil {
 		return "", err
 	}
-	if ctx.Err() != nil {
-		return "", ctx.Err()
-	}
+
 	var (
 		storedContent []byte
 		salt          []byte
@@ -102,11 +98,10 @@ func (s *NoteService) CreateNote(ctx context.Context, mode, title, content, pass
 			return "", err
 		}
 	}
-	if ctx.Err() != nil {
-		return "", ctx.Err()
-	}
+
 	_, err = s.q.CreateNote(ctx, sqlc.CreateNoteParams{
 		ID:      id,
+		UserID:  userID,
 		Mode:    mode,
 		Content: storedContent,
 		Salt:    salt,
@@ -123,6 +118,9 @@ func (s *NoteService) CreateNote(ctx context.Context, mode, title, content, pass
 // Untuk mode private, content tidak dikembalikan — klien harus memanggil
 // UnlockPrivateNote dengan password yang benar.
 // Title selalu dikembalikan (plaintext) untuk semua mode.
+//
+// Endpoint ini PUBLIK — tidak butuh login. Siapapun bisa akses lewat share link.
+// Note: GetNoteMeta tidak memvalidasi user — untuk share link, access diberikan ke semua orang.
 func (s *NoteService) GetNoteMeta(ctx context.Context, id string) (mode string, title string, content string, err error) {
 	if ctx.Err() != nil {
 		return "", "", "", ctx.Err()
@@ -144,6 +142,9 @@ func (s *NoteService) GetNoteMeta(ctx context.Context, id string) (mode string, 
 // UnlockPrivateNote memverifikasi password dan mengembalikan title & content asli
 // (hasil dekripsi content) jika password benar.
 // Title langsung dikembalikan sebagai plaintext (tidak perlu didekripsi).
+//
+// Endpoint ini PUBLIK — tidak butuh login. Siapapun bisa unlock pakai password.
+// Note: UnlockPrivateNote tidak memvalidasi user — untuk share link, akses diberikan ke semua orang.
 func (s *NoteService) UnlockPrivateNote(ctx context.Context, id, password string) (title string, content string, err error) {
 	if ctx.Err() != nil {
 		return "", "", ctx.Err()
@@ -173,7 +174,10 @@ func (s *NoteService) UnlockPrivateNote(ctx context.Context, id, password string
 // UpdateNote mengubah isi note (content & title). Untuk mode private, password
 // wajib dikirim dan akan diverifikasi terlebih dahulu (dengan mencoba dekripsi
 // content lama) sebelum content baru dienkripsi ulang dan disimpan.
-func (s *NoteService) UpdateNote(ctx context.Context, id, title, content, password string) error {
+//
+// PENTING: UpdateNote hanya boleh dijalankan oleh pemilik note (userID harus cocok).
+// Jika userID tidak cocok, mengembalikan ErrForbidden.
+func (s *NoteService) UpdateNote(ctx context.Context, id, title, content, password, userID string) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
@@ -188,6 +192,11 @@ func (s *NoteService) UpdateNote(ctx context.Context, id, title, content, passwo
 			return ErrNotFound
 		}
 		return err
+	}
+
+	// Verifikasi bahwa userID yang melakukan update adalah pemilik note
+	if n.UserID != userID {
+		return ErrForbidden
 	}
 
 	var newContent []byte
@@ -224,7 +233,10 @@ func (s *NoteService) UpdateNote(ctx context.Context, id, title, content, passwo
 
 // DeleteNote menghapus note. Untuk mode private, password wajib diverifikasi
 // terlebih dahulu sebelum penghapusan dieksekusi.
-func (s *NoteService) DeleteNote(ctx context.Context, id, password string) error {
+//
+// PENTING: DeleteNote hanya boleh dijalankan oleh pemilik note (userID harus cocok).
+// Jika userID tidak cocok, mengembalikan ErrForbidden.
+func (s *NoteService) DeleteNote(ctx context.Context, id, password, userID string) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
@@ -235,6 +247,11 @@ func (s *NoteService) DeleteNote(ctx context.Context, id, password string) error
 			return ErrNotFound
 		}
 		return err
+	}
+
+	// Verifikasi bahwa userID yang melakukan delete adalah pemilik note
+	if n.UserID != userID {
+		return ErrForbidden
 	}
 
 	if n.Mode == ModePrivate {
@@ -259,15 +276,19 @@ func (s *NoteService) DeleteNote(ctx context.Context, id, password string) error
 	return nil
 }
 
-// ListNotes mengembalikan daftar note ringan (tanpa content/salt).
-// Title langsung dikembalikan apa adanya karena disimpan sebagai plaintext
-// untuk semua mode.
-func (s *NoteService) ListNotes(ctx context.Context, limit, offset int32) ([]NoteSummary, error) {
+// ListNotes mengembalikan daftar note ringan (tanpa content/salt) yang punya
+// userID tertentu. Title langsung dikembalikan apa adanya karena disimpan
+// sebagai plaintext untuk semua mode.
+//
+// PENTING: ListNotes hanya menampilkan note punya userID yang request.
+// Note user lain TIDAK terlihat (isolasi per user).
+func (s *NoteService) ListNotes(ctx context.Context, userID string, limit, offset int32) ([]NoteSummary, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
 
-	rows, err := s.q.ListNotes(ctx, sqlc.ListNotesParams{
+	rows, err := s.q.ListNotesByUser(ctx, sqlc.ListNotesByUserParams{
+		UserID: userID,
 		Limit:  limit,
 		Offset: offset,
 	})

@@ -10,25 +10,26 @@ import (
 	"time"
 )
 
-const countNotes = `-- name: CountNotes :one
-SELECT COUNT(*) FROM notes
+const countNotesByUser = `-- name: CountNotesByUser :one
+SELECT COUNT(*) FROM notes WHERE user_id = $1
 `
 
-func (q *Queries) CountNotes(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countNotes)
+func (q *Queries) CountNotesByUser(ctx context.Context, userID string) (int64, error) {
+	row := q.db.QueryRow(ctx, countNotesByUser, userID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
 const createNote = `-- name: CreateNote :one
-INSERT INTO notes (id, mode, content, salt, title)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, mode, content, salt, created_at, updated_at, title
+INSERT INTO notes (id, user_id, mode, content, salt, title)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, user_id, mode, content, salt, title, created_at, updated_at
 `
 
 type CreateNoteParams struct {
 	ID      string `json:"id"`
+	UserID  string `json:"user_id"`
 	Mode    string `json:"mode"`
 	Content []byte `json:"content"`
 	Salt    []byte `json:"salt"`
@@ -38,6 +39,7 @@ type CreateNoteParams struct {
 func (q *Queries) CreateNote(ctx context.Context, arg CreateNoteParams) (Note, error) {
 	row := q.db.QueryRow(ctx, createNote,
 		arg.ID,
+		arg.UserID,
 		arg.Mode,
 		arg.Content,
 		arg.Salt,
@@ -46,12 +48,13 @@ func (q *Queries) CreateNote(ctx context.Context, arg CreateNoteParams) (Note, e
 	var i Note
 	err := row.Scan(
 		&i.ID,
+		&i.UserID,
 		&i.Mode,
 		&i.Content,
 		&i.Salt,
+		&i.Title,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Title,
 	)
 	return i, err
 }
@@ -69,7 +72,7 @@ func (q *Queries) DeleteNote(ctx context.Context, id string) (int64, error) {
 }
 
 const getNote = `-- name: GetNote :one
-SELECT id, mode, content, salt, created_at, updated_at, title FROM notes WHERE id = $1
+SELECT id, user_id, mode, content, salt, title, created_at, updated_at FROM notes WHERE id = $1
 `
 
 func (q *Queries) GetNote(ctx context.Context, id string) (Note, error) {
@@ -77,26 +80,28 @@ func (q *Queries) GetNote(ctx context.Context, id string) (Note, error) {
 	var i Note
 	err := row.Scan(
 		&i.ID,
+		&i.UserID,
 		&i.Mode,
 		&i.Content,
 		&i.Salt,
+		&i.Title,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Title,
 	)
 	return i, err
 }
 
-const listNotes = `-- name: ListNotes :many
-SELECT id, mode, title, created_at, updated_at FROM notes ORDER BY created_at DESC LIMIT $1 OFFSET $2
+const listNotesByUser = `-- name: ListNotesByUser :many
+SELECT id, mode, title, created_at, updated_at FROM notes WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3
 `
 
-type ListNotesParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+type ListNotesByUserParams struct {
+	UserID string `json:"user_id"`
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
 }
 
-type ListNotesRow struct {
+type ListNotesByUserRow struct {
 	ID        string    `json:"id"`
 	Mode      string    `json:"mode"`
 	Title     string    `json:"title"`
@@ -104,15 +109,15 @@ type ListNotesRow struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func (q *Queries) ListNotes(ctx context.Context, arg ListNotesParams) ([]ListNotesRow, error) {
-	rows, err := q.db.Query(ctx, listNotes, arg.Limit, arg.Offset)
+func (q *Queries) ListNotesByUser(ctx context.Context, arg ListNotesByUserParams) ([]ListNotesByUserRow, error) {
+	rows, err := q.db.Query(ctx, listNotesByUser, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListNotesRow
+	var items []ListNotesByUserRow
 	for rows.Next() {
-		var i ListNotesRow
+		var i ListNotesByUserRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Mode,
@@ -134,7 +139,7 @@ const updateNoteContent = `-- name: UpdateNoteContent :one
 UPDATE notes
 SET content = $2, title = $3, updated_at = now()
 WHERE id = $1
-RETURNING id, mode, content, salt, created_at, updated_at, title
+RETURNING id, user_id, mode, content, salt, title, created_at, updated_at
 `
 
 type UpdateNoteContentParams struct {
@@ -148,12 +153,13 @@ func (q *Queries) UpdateNoteContent(ctx context.Context, arg UpdateNoteContentPa
 	var i Note
 	err := row.Scan(
 		&i.ID,
+		&i.UserID,
 		&i.Mode,
 		&i.Content,
 		&i.Salt,
+		&i.Title,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Title,
 	)
 	return i, err
 }
