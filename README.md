@@ -92,18 +92,32 @@ Authorization: Bearer <access_token>
 ```
 Register/Login
   ↓
-Dapat TokenPair: { access_token, refresh_token }
+Server set refresh_token di HttpOnly cookie (tidak bisa diakses JS)
+Response body: { access_token }
   ↓
-Client kirim access_token di setiap request (via Authorization header).
+Client kirim access_token di setiap request (Authorization: Bearer <token>).
 Jika access_token expired (401), client minta refresh:
-  POST /api/auth/refresh  { refresh_token }
-  → dapat TokenPair baru.
+  POST /api/auth/refresh  (refresh token otomatis terkirim via cookie)
+  → Server set cookie baru + response access_token baru.
   ↓
 Refresh token lama langsung di-revoke (rotation).
 Jika refresh token juga expired/invalid → client harus login ulang.
 ```
 
+**Mobile (Flutter)**: Karena Flutter tidak bisa mengelola HttpOnly cookie secara native,
+ada endpoint terpisah yang menerima refresh token via body:
+
+```
+/login-mobile  → { access_token, refresh_token }  (body response)
+/refresh-mobile → body: { refresh_token } → { access_token, refresh_token }
+/logout-mobile  → body: { refresh_token }
+```
+
 ### API Auth
+
+> **Catatan untuk client web**: refresh token dikirim/dibaca otomatis via HttpOnly
+> cookie oleh browser. Client tidak perlu menyimpan atau mengirim refresh token
+> secara manual. Untuk mobile (Flutter), lihat bagian [Mobile API](#mobile-api-flutter).
 
 #### Register
 
@@ -116,10 +130,10 @@ curl -X POST localhost:8080/api/auth/register \
 Response:
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIs...",
-  "refresh_token": "a1b2c3d4e5f6..."
+  "access_token": "eyJhbGciOiJIUzI1NiIs..."
 }
 ```
+Refresh token otomatis di-set sebagai HttpOnly cookie → tidak perlu dikelola manual.
 
 #### Login
 
@@ -129,27 +143,66 @@ curl -X POST localhost:8080/api/auth/login \
   -d '{"email":"user@example.com","password":"rahasia123"}'
 ```
 
-Response — sama seperti register (TokenPair).
+Response — sama seperti register (hanya access_token di body, refresh token di cookie).
 
 #### Refresh token
 
 ```bash
-curl -X POST localhost:8080/api/auth/refresh \
-  -H "Content-Type: application/json" \
-  -d '{"refresh_token":"a1b2c3d4e5f6..."}'
+curl -X POST localhost:8080/api/auth/refresh
+# no body needed — refresh token otomatis terkirim via cookie
 ```
 
-Response — TokenPair baru. Refresh token lama langsung di-revoke (rotation).
+Response — access_token baru di body, refresh token baru di cookie. Token lama di-revoke.
 
 #### Logout
 
 ```bash
-curl -X POST localhost:8080/api/auth/logout \
+curl -X POST localhost:8080/api/auth/logout
+# no body needed — refresh token dibaca dari cookie
+```
+
+Hanya session dengan refresh token tersebut yang di-revoke, device lain tidak terpengaruh. Cookie langsung dihapus.
+
+### Mobile API (Flutter)
+
+Untuk mobile client yang tidak bisa mengelola HttpOnly cookie, gunakan endpoint
+terpisah — refresh token dikirim dan dikembalikan via body.
+
+#### Login mobile
+
+```bash
+curl -X POST localhost:8080/api/auth/login-mobile \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"rahasia123"}'
+```
+
+Response:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "a1b2c3d4e5f6..."
+}
+```
+
+#### Refresh mobile
+
+```bash
+curl -X POST localhost:8080/api/auth/refresh-mobile \
   -H "Content-Type: application/json" \
   -d '{"refresh_token":"a1b2c3d4e5f6..."}'
 ```
 
-Hanya session dengan refresh token tersebut yang di-revoke, device lain tidak terpengaruh.
+Response — TokenPair baru. Token lama di-revoke.
+
+#### Logout mobile
+
+```bash
+curl -X POST localhost:8080/api/auth/logout-mobile \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"a1b2c3d4e5f6..."}'
+```
+
+Hanya session dengan refresh token tersebut yang di-revoke.
 
 ### Keamanan password (login)
 
@@ -276,4 +329,10 @@ Hanya pemilik note yang boleh delete.
 - **Salt & key derivation (private note)**: tiap note private punya salt unik (16 byte random), key diturunkan pakai Argon2id sebelum dipakai AES-256-GCM. Salt disimpan plaintext di DB (begitulah cara kerja Argon2 — salt tidak perlu dirahasiakan).
 - **Dua algoritma hash berbeda**: bcrypt untuk hash password login (karena low-entropy), SHA-256 untuk hash refresh token (karena token sudah random 256-bit), Argon2id untuk derive key enkripsi note (karena butuh KDF).
 - **ID/slug link** memakai 12 karakter acak dari `crypto/rand` (bukan `math/rand`) supaya tidak mudah ditebak — penting untuk share link publik.
-- **Ini MVP/prototype**: belum ada rate limiting, belum ada TTL/auto-expire note, belum ada logging terstruktur, dan CORS masih `*`. Untuk production, tambahkan itu semua.
+- **Rate limiting**: endpoint auth dilindungi rate limiter (10 request/menit per IP) untuk menghambat brute force.
+- **Session cleanup**: session expired/revoked secara otomatis dihapus dari database setiap jam oleh background goroutine.
+- **Structured logging**: menggunakan `slog` (standard library sejak Go 1.21). JSON logging otomatis diaktifkan saat `APP_ENV=production`.
+- **Graceful shutdown**: server menerima SIGINT/SIGTERM, menunggu request selesai sebelum mati.
+- **Refresh token via HttpOnly cookie**: untuk client web, refresh token tidak bisa diakses JavaScript sehingga aman dari XSS. Untuk mobile, ada endpoint terpisah (body-based).
+- **CORS masih `*`**. Untuk production, batasi origin.
+- **Ini MVP/prototype**: belum ada TTL/auto-expire note. Untuk production, tambahkan itu.
