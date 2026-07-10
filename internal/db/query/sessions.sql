@@ -11,3 +11,12 @@ UPDATE sessions SET revoked_at = now() WHERE id = $1;
 
 -- name: RevokeSessionByTokenHash :exec
 UPDATE sessions SET revoked_at = now() WHERE token_hash = $1;
+
+-- name: DeleteExpiredAndRevokedSessions :execrows
+-- Hapus session yang sudah expired ATAU sudah di-revoke lebih dari 1 hari.
+-- Revoked session diberi grace period 1 hari sebelum dihapus untuk keperluan
+-- audit log jika diperlukan di masa depan.
+DELETE FROM sessions
+WHERE
+    expires_at < now()
+    OR (revoked_at IS NOT NULL AND revoked_at < now() - INTERVAL '1 day');

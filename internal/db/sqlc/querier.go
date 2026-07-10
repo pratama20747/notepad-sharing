@@ -13,6 +13,10 @@ type Querier interface {
 	CreateNote(ctx context.Context, arg CreateNoteParams) (Note, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	// Hapus session yang sudah expired ATAU sudah di-revoke lebih dari 1 hari.
+	// Revoked session diberi grace period 1 hari sebelum dihapus untuk keperluan
+	// audit log jika diperlukan di masa depan.
+	DeleteExpiredAndRevokedSessions(ctx context.Context) (int64, error)
 	DeleteNote(ctx context.Context, id string) (int64, error)
 	GetNote(ctx context.Context, id string) (Note, error)
 	GetSessionByTokenHash(ctx context.Context, tokenHash string) (Session, error)
