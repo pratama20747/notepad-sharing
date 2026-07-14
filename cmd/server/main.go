@@ -5,6 +5,7 @@ import (
 	"context"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -30,6 +31,7 @@ func main() {
 
 	setupLogger(cfg.IsProd)
 
+	// Context untuk sinyal interrupt
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
@@ -67,13 +69,37 @@ func main() {
 	cleaner := service.NewSessionCleaner(queries, 1*time.Hour)
 	go cleaner.Start(ctx)
 
+	// Buat HTTP server dari router
 	r := router.New(noteHandler, authHandler, jwtManager)
 
-	slog.Info("server berjalan", "port", cfg.Port, "prod", cfg.IsProd)
-	if err := r.Run(":" + cfg.Port); err != nil {
-		slog.Error("server gagal berjalan", "error", err)
-		os.Exit(1)
+	srv := &http.Server{
+		Addr:    ":" + cfg.Port,
+		Handler: r,
 	}
+
+	// Jalankan server di goroutine
+	go func() {
+		slog.Info("server berjalan", "port", cfg.Port, "prod", cfg.IsProd)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("server gagal berjalan", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Tunggu sinyal interrupt
+	<-ctx.Done()
+	slog.Info("menerima sinyal shutdown, menghentikan server...")
+
+	// Buat context dengan timeout untuk graceful shutdown
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	// Shutdown server
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		slog.Error("server forced to shutdown", "error", err)
+	}
+
+	slog.Info("server berhenti dengan graceful")
 }
 
 // setupLogger mengkonfigurasi slog sebagai default logger.

@@ -332,7 +332,8 @@ Hanya pemilik note yang boleh delete.
 - **Rate limiting**: endpoint auth dilindungi rate limiter (10 request/menit per IP) untuk menghambat brute force.
 - **Session cleanup**: session expired/revoked secara otomatis dihapus dari database setiap jam oleh background goroutine.
 - **Structured logging**: menggunakan `slog` (standard library sejak Go 1.21). JSON logging otomatis diaktifkan saat `APP_ENV=production`.
-- **Graceful shutdown**: server menerima SIGINT/SIGTERM, menunggu request selesai sebelum mati.
+- **Graceful shutdown**: server menerima SIGINT/SIGTERM, menunggu request selesai dalam batas waktu 10 detik (via `http.Server.Shutdown()`), lalu berhenti.
 - **Refresh token via HttpOnly cookie**: untuk client web, refresh token tidak bisa diakses JavaScript sehingga aman dari XSS. Untuk mobile, ada endpoint terpisah (body-based).
-- **CORS masih `*`**. Untuk production, batasi origin.
+- **CORS** — di development pakai `*`. Di production hanya allowlist tertentu (`Access-Control-Allow-Credentials: true` aktif).
+- **404 handler**: route yang tidak dikenal mengembalikan JSON `{"error":"Not found"}`, bukan serve index.html.
 - **Ini MVP/prototype**: belum ada TTL/auto-expire note. Untuk production, tambahkan itu.

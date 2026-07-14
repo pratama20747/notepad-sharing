@@ -1,75 +1,48 @@
-// Package router mendefinisikan seluruh route HTTP aplikasi.
 package router
 
 import (
-	"log"
-
-	"github.com/gin-gonic/gin"
+	"os" // ⭐ Jangan lupa import os
 
 	"notepad-sharelink/internal/authutil"
 	"notepad-sharelink/internal/handler"
 	"notepad-sharelink/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 )
 
-// New membuat *gin.Engine lengkap dengan seluruh route ter-registrasi.
 func New(
 	noteHandler *handler.NoteHandler,
 	authHandler *handler.AuthHandler,
 	jwtManager *authutil.JWTManager,
 ) *gin.Engine {
-	r := gin.New() // pakai gin.New() bukan gin.Default() karena kita pasang logger sendiri
+	r := gin.New()
 
-	// Structured logging untuk semua request
 	r.Use(middleware.Logger())
 	r.Use(gin.Recovery())
+	r.Use(corsMiddleware())
 
-	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
+	r.GET("/health", healthCheck)
 
-	r.Static("/assets", "./frontend")
-
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "ok"})
-	})
-
-	// Rate limiter untuk endpoint auth (lebih ketat dari endpoint biasa)
-	// 10 request per menit per IP — cukup longgar untuk pemakaian normal
-	// tapi efektif menghambat brute force otomatis
-	authLimiter, err := middleware.NewRateLimiter("10-M")
-	if err != nil {
-		log.Fatalf("gagal membuat auth rate limiter: %v", err)
-	}
-
+	// Auth routes
+	authLimiter, _ := middleware.NewRateLimiter("10-M")
 	auth := r.Group("/api/auth")
 	auth.Use(authLimiter)
 	{
-		// Endpoint untuk web (cookie-based refresh token)
 		auth.POST("/register", authHandler.Register)
 		auth.POST("/login", authHandler.Login)
-		auth.POST("/refresh", authHandler.Refresh) // baca refresh token dari cookie
-		auth.POST("/logout", authHandler.Logout)   // baca refresh token dari cookie
-
-		// Endpoint untuk Flutter mobile (body-based refresh token)
+		auth.POST("/refresh", authHandler.Refresh)
+		auth.POST("/logout", authHandler.Logout)
 		auth.POST("/login-mobile", authHandler.MobileLoginHandler)
 		auth.POST("/refresh-mobile", authHandler.MobileRefreshHandler)
 		auth.POST("/logout-mobile", authHandler.MobileLogoutHandler)
 	}
 
+	// Notes routes
 	notes := r.Group("/api/notes")
 	{
-		// Publik — akses via share link, tanpa perlu login
 		notes.GET("/:id", noteHandler.Get)
 		notes.POST("/:id/unlock", noteHandler.Unlock)
 
-		// Protected — butuh JWT access token di header Authorization
 		authed := notes.Group("")
 		authed.Use(middleware.RequireAuth(jwtManager))
 		{
@@ -80,10 +53,56 @@ func New(
 		}
 	}
 
-	// Catch-all: sajikan index.html untuk semua route yang tidak match
 	r.NoRoute(func(c *gin.Context) {
-		c.File("./frontend/index.html")
+		c.JSON(404, gin.H{"error": "Not found"})
 	})
 
 	return r
+}
+
+// ⭐ Fixed: CORS middleware
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+
+		// DEVELOPMENT: Allow all
+		if os.Getenv("APP_ENV") == "development" {
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+			if c.Request.Method == "OPTIONS" {
+				c.AbortWithStatus(204)
+				return
+			}
+			c.Next()
+			return
+		}
+
+		// PRODUCTION: Allowlist
+		allowed := map[string]bool{
+			"https://frontend-domain.com":     true,
+			"https://www.frontend-domain.com": true,
+			"http://localhost:3000":           true,
+			"http://localhost:8080":           true,
+		}
+
+		if allowed[origin] {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Access-Control-Allow-Credentials", "true")
+		}
+
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	}
+}
+
+func healthCheck(c *gin.Context) {
+	c.JSON(200, gin.H{"status": "ok"})
 }
