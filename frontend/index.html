@@ -9,7 +9,11 @@
     <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/relativeTime.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/locale/id.js"></script>
+    <!-- Tailwind via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom base overrides (keeping the same dark/light variables for compatibility) -->
     <style>
+        /* keep the same CSS variables and dark mode override so the existing design language stays */
         :root {
             --bg: #eef2ff; --bg-2: #f8faff; --card: #fff; --text: #0f1729;
             --text-muted: #64748b; --border: #e6e9f2; --blue: #2f5bff;
@@ -26,110 +30,44 @@
             --amber-light: #33220f; --amber-border: #5a3c18;
             --shadow: 0 8px 24px rgba(0,0,0,0.35);
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
-            background: var(--bg-2); color: var(--text); min-height: 100vh;
-            padding-bottom: 92px; transition: background 0.25s ease, color 0.25s ease;
-        }
-        .topbar { position: sticky; top: 0; z-index: 50; background: var(--card); border-bottom: 1px solid var(--border); }
-        .topbar-inner { max-width: 720px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; }
-        .brand { display: flex; align-items: center; gap: 10px; cursor: pointer; background: none; border: none; font: inherit; color: inherit; }
-        .brand-icon { width: 38px; height: 38px; border-radius: 11px; background: var(--blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
-        .brand-icon.small { width: 30px; height: 30px; border-radius: 9px; font-size: 14px; }
-        .brand-name { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
-        .brand-name .dot { color: var(--blue); }
-        .topbar-actions { display: flex; align-items: center; gap: 10px; }
-        .dark-toggle { border: none; background: var(--blue-light); border-radius: var(--radius-pill); width: 52px; height: 30px; display: flex; align-items: center; padding: 3px; cursor: pointer; }
-        .dark-toggle .thumb { width: 24px; height: 24px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.2s ease; }
-        body.dark .dark-toggle .thumb { transform: translateX(22px); }
-        .icon-btn { width: 40px; height: 40px; border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--card); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
-        .icon-btn:hover { border-color: var(--blue); color: var(--blue); }
-        .icon-btn.primary { background: var(--blue); border-color: var(--blue); color: white; }
-        .icon-btn.primary:hover { background: var(--blue-dark); }
-        .icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .icon-btn svg { width: 19px; height: 19px; }
-        .menu-overlay { position: fixed; inset: 0; background: var(--card); z-index: 200; }
-        .menu-panel { max-width: 720px; margin: 0 auto; }
-        .menu-links { padding: 12px 20px; display: flex; flex-direction: column; gap: 4px; }
-        .menu-links a { padding: 16px 4px; border-bottom: 1px solid var(--border); text-decoration: none; font-size: 17px; color: var(--text-muted); font-weight: 500; }
-        .page { max-width: 720px; margin: 0 auto; padding: 0 20px; }
-        .hero { background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%); text-align: center; padding: 44px 20px 36px; margin: 0 -20px; }
-        .hero-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--card); border-radius: var(--radius-pill); padding: 9px 18px; font-size: 13.5px; font-weight: 700; color: var(--blue); box-shadow: var(--shadow); margin-bottom: 22px; }
-        .hero-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); }
-        .hero-title { font-size: 42px; font-weight: 800; line-height: 1.12; letter-spacing: -0.03em; }
-        .hero-title .accent { color: var(--blue); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
-        .hero-subtitle { max-width: 480px; margin: 18px auto 0; color: var(--text-muted); font-size: 15.5px; line-height: 1.6; }
-        .key-search { margin: 28px auto 0; max-width: 520px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-pill); box-shadow: var(--shadow); display: flex; align-items: center; padding: 6px 6px 6px 18px; gap: 8px; }
-        .key-search input { flex: 1; border: none; outline: none; background: none; font-family: "Courier New", monospace; font-size: 15px; color: var(--text); padding: 10px 0; }
-        .key-tips { margin-top: 16px; font-size: 13.5px; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
-        .chip { border: 1px solid var(--border); background: var(--card); color: var(--blue); font-family: "Courier New", monospace; font-weight: 700; font-size: 13px; padding: 4px 12px; border-radius: var(--radius-pill); cursor: pointer; }
-        .chip:hover { border-color: var(--blue); }
-        .section-header { display: flex; align-items: flex-end; justify-content: space-between; margin: 30px 0 14px; }
-        .section-header h2 { font-size: 21px; font-weight: 800; }
-        .section-header .muted { font-size: 13px; color: var(--text-muted); display: block; margin-top: 2px; }
-        .link-action { font-size: 14px; font-weight: 700; color: var(--blue); text-decoration: none; cursor: pointer; }
-        .note-grid { display: flex; flex-direction: column; gap: 14px; }
-        .note-card { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; }
-        .note-card:hover { box-shadow: var(--shadow); border-color: transparent; transform: translateY(-1px); }
-        .share-icon-btn {
-            position: absolute;
-            top: 60px;
-            right: 14px;
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            border: 1px solid var(--border);
-            background: var(--blue-light);
-            color: var(--blue);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 2;
-            transition: background 0.15s ease, transform 0.15s ease;
-        }
-        .share-icon-btn:hover { background: var(--blue); color: white; transform: scale(1.06); }
-        .share-icon-btn svg { width: 16px; height: 16px; }
-        .note-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-        .note-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 17px; }
-        .note-card-badges { display: flex; gap: 8px; }
+        /* keep all utility classes used in x-bind:class, e.g. .badge, .visibility-banner, etc. */
         .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: var(--radius-pill); font-size: 12.5px; font-weight: 700; }
         .badge.key { background: var(--blue-light); color: var(--blue); font-family: "Courier New", monospace; }
         .badge.public { background: var(--green-light); color: var(--green); }
         .badge.private { background: var(--amber-light); color: var(--amber); }
         .badge.owner { background: var(--blue-light); color: var(--blue); }
-        .note-card-title { font-size: 16.5px; font-weight: 700; margin-bottom: 6px; }
-        .note-card-excerpt { font-size: 14px; color: var(--text-muted); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .note-card-footer { display: flex; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--text-muted); }
-        .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); background: var(--card); border: 1px dashed var(--border); border-radius: var(--radius-lg); font-size: 14px; }
-        .skeleton { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; color: var(--text-muted); font-size: 14px; text-align: center; }
-        .editor-header { display: flex; align-items: center; gap: 10px; padding: 18px 0 6px; justify-content: space-between; }
-        .editor-header-left { display: flex; align-items: center; gap: 10px; }
-        .editor-header-right { display: flex; gap: 8px; }
-        .field-label { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin: 22px 0 8px; }
-        input[type="text"], input[type="password"], input[type="email"], textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); color: var(--text); font-size: 15px; padding: 13px 16px; outline: none; transition: border-color 0.15s; }
-        input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus, textarea:focus { border-color: var(--blue); }
-        textarea { min-height: 200px; resize: vertical; margin-top: 10px; font-family: inherit; }
+        .visibility-banner { display: flex; gap: 12px; align-items: flex-start; border-radius: var(--radius-md); padding: 16px; margin-top: 12px; font-size: 13.5px; }
+        .visibility-banner.public { background: var(--green-light); border: 1px solid var(--green-border); color: var(--green); }
+        .visibility-banner.private { background: var(--amber-light); border: 1px solid var(--amber-border); color: var(--amber); }
         .visibility-toggle { display: flex; background: var(--bg); border-radius: var(--radius-pill); padding: 4px; gap: 4px; }
         .vis-btn { flex: 1; border: none; background: none; padding: 12px; border-radius: var(--radius-pill); font-weight: 700; font-size: 14.5px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; }
         .vis-btn.active[data-mode="public"] { background: var(--card); color: var(--green); box-shadow: var(--shadow); }
         .vis-btn.active[data-mode="private"] { background: var(--card); color: var(--amber); box-shadow: var(--shadow); }
-        .visibility-banner { display: flex; gap: 12px; align-items: flex-start; border-radius: var(--radius-md); padding: 16px; margin-top: 12px; font-size: 13.5px; }
-        .visibility-banner.public { background: var(--green-light); border: 1px solid var(--green-border); color: var(--green); }
-        .visibility-banner.private { background: var(--amber-light); border: 1px solid var(--amber-border); color: var(--amber); }
+        .icon-btn { width: 40px; height: 40px; border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--card); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+        .icon-btn.primary { background: var(--blue); border-color: var(--blue); color: white; }
+        .icon-btn.primary:hover { background: var(--blue-dark); }
+        .icon-btn:hover { border-color: var(--blue); color: var(--blue); }
         .btn { padding: 13px 22px; border: none; border-radius: var(--radius-pill); font-weight: 700; font-size: 14.5px; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-        .btn-block { width: 100%; }
         .btn-primary { background: var(--blue); color: white; }
         .btn-primary:hover { background: var(--blue-dark); }
-        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-secondary { background: var(--blue-light); color: var(--blue); }
         .btn-danger { background: #fde8e8; color: var(--red); }
         body.dark .btn-danger { background: #3a1414; }
-        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
-        .note-view-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px; margin-top: 18px; }
-        .note-view-content { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; white-space: pre-wrap; font-size: 14.5px; line-height: 1.65; max-height: 420px; overflow-y: auto; margin-top: 14px; }
-        .locked-message { text-align: center; padding: 20px; }
+        .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .key-search { margin: 28px auto 0; max-width: 520px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-pill); box-shadow: var(--shadow); display: flex; align-items: center; padding: 6px 6px 6px 18px; gap: 8px; }
+        .key-search input { flex: 1; border: none; outline: none; background: none; font-family: "Courier New", monospace; font-size: 15px; color: var(--text); padding: 10px 0; }
+        .note-grid { display: flex; flex-direction: column; gap: 14px; }
+        .note-card { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; }
+        .note-card:hover { box-shadow: var(--shadow); border-color: transparent; transform: translateY(-1px); }
+        .share-icon-btn {
+            position: absolute; top: 60px; right: 14px; width: 34px; height: 34px; border-radius: 50%;
+            border: 1px solid var(--border); background: var(--blue-light); color: var(--blue);
+            display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2;
+            transition: background 0.15s ease, transform 0.15s ease;
+        }
+        .share-icon-btn:hover { background: var(--blue); color: white; transform: scale(1.06); }
+        .share-icon-btn svg { width: 16px; height: 16px; }
         .toast { position: fixed; bottom: 92px; left: 50%; transform: translateX(-50%); background: #1a2236; color: white; padding: 13px 22px; border-radius: var(--radius-pill); font-weight: 600; z-index: 1000; box-shadow: 0 8px 20px rgba(0,0,0,0.25); white-space: nowrap; }
         .toast.error { background: var(--red); }
         .toast.success { background: var(--green); }
@@ -138,20 +76,36 @@
         .nav-item { flex: 1; border: none; background: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0 8px; color: var(--text-muted); cursor: pointer; font-size: 12px; font-weight: 600; }
         .nav-item.active { color: var(--blue); }
         .nav-item svg { width: 22px; height: 22px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif; background: var(--bg-2); color: var(--text); min-height: 100vh; padding-bottom: 92px; transition: background 0.25s ease, color 0.25s ease; }
+        .topbar { position: sticky; top: 0; z-index: 50; background: var(--card); border-bottom: 1px solid var(--border); }
+        .topbar-inner { max-width: 720px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; }
+        .brand { display: flex; align-items: center; gap: 10px; cursor: pointer; background: none; border: none; font: inherit; color: inherit; }
+        .brand-icon { width: 38px; height: 38px; border-radius: 11px; background: var(--blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+        .brand-icon.small { width: 30px; height: 30px; border-radius: 9px; font-size: 14px; }
+        .brand-name { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+        .brand-name .dot { color: var(--blue); }
+        .field-label { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin: 22px 0 8px; }
+        .dark-toggle { border: none; background: var(--blue-light); border-radius: var(--radius-pill); width: 52px; height: 30px; display: flex; align-items: center; padding: 3px; cursor: pointer; }
+        .dark-toggle .thumb { width: 24px; height: 24px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.2s ease; }
+        body.dark .dark-toggle .thumb { transform: translateX(22px); }
+        input[type="text"], input[type="password"], input[type="email"], textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); color: var(--text); font-size: 15px; padding: 13px 16px; outline: none; transition: border-color 0.15s; }
+        input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus, textarea:focus { border-color: var(--blue); }
+        textarea { min-height: 200px; resize: vertical; margin-top: 10px; font-family: inherit; }
+        .menu-overlay { position: fixed; inset: 0; background: var(--card); z-index: 200; }
+        .menu-panel { max-width: 720px; margin: 0 auto; }
+        .menu-links { padding: 12px 20px; display: flex; flex-direction: column; gap: 4px; }
+        .menu-links a { padding: 16px 4px; border-bottom: 1px solid var(--border); text-decoration: none; font-size: 17px; color: var(--text-muted); font-weight: 500; }
+        .page { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+        .hero { background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%); text-align: center; padding: 44px 20px 36px; margin: 0 -20px; }
+        .note-view-content { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; white-space: pre-wrap; font-size: 14.5px; line-height: 1.65; max-height: 420px; overflow-y: auto; margin-top: 14px; }
+        .note-view-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px; margin-top: 18px; }
         .profile-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-top: 18px; text-align: center; }
-        .profile-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--blue-light); color: var(--blue); font-size: 26px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
-        .footer-note { text-align: center; color: var(--text-muted); font-size: 12.5px; margin: 36px 0 12px; }
-        .auth-container { max-width: 400px; margin: 30px auto; }
-        .auth-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 30px; }
-        .auth-card .field-label:first-child { margin-top: 0; }
-        .auth-switch { margin-top: 16px; text-align: center; font-size: 14px; color: var(--text-muted); }
-        .auth-switch a { color: var(--blue); font-weight: 700; cursor: pointer; text-decoration: none; }
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); background: var(--card); border: 1px dashed var(--border); border-radius: var(--radius-lg); font-size: 14px; }
+        .skeleton { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; color: var(--text-muted); font-size: 14px; text-align: center; }
         .user-badge { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-muted); }
         .user-badge .email { font-weight: 600; color: var(--text); }
         .logout-btn { background: none; border: none; color: var(--red); font-weight: 700; cursor: pointer; font-size: 13px; }
         .logout-btn:hover { text-decoration: underline; }
-        .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.6s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body x-data="notepadApp()" x-init="init()" :class="{ 'dark': darkMode }">
@@ -194,32 +148,32 @@
                 <a href="#" @click.prevent="menuOpen = false">Pricing</a>
                 <a href="#" @click.prevent="menuOpen = false; view = 'auth'">Login / Register</a>
             </nav>
-            <button class="btn btn-primary btn-block" @click="menuOpen = false; view = 'auth'">Login</button>
+            <button class="btn btn-primary w-full" @click="menuOpen = false; view = 'auth'">Login</button>
         </div>
     </div>
 
     <main class="page">
         <!-- ========== AUTH ========== -->
         <section x-show="view === 'auth'">
-            <div class="auth-container">
-                <div class="auth-card">
-                    <h2 x-text="authMode === 'login' ? 'Login' : 'Daftar Akun'" style="font-size:24px; font-weight:800; margin-bottom:8px;"></h2>
-                    <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;" x-text="authMode === 'login' ? 'Masuk ke akun Anda' : 'Buat akun baru untuk menyimpan catatan'"></p>
+            <div class="max-w-md mx-auto mt-8">
+                <div class="bg-white dark:bg-[#131b2e] border border-[var(--border)] rounded-[var(--radius-lg)] p-8">
+                    <h2 class="text-2xl font-extrabold" x-text="authMode === 'login' ? 'Login' : 'Daftar Akun'"></h2>
+                    <p class="text-sm text-[var(--text-muted)] mt-1" x-text="authMode === 'login' ? 'Masuk ke akun Anda' : 'Buat akun baru untuk menyimpan catatan'"></p>
 
                     <div class="field-label">Email</div>
                     <input type="email" x-model="authEmail" placeholder="email@example.com" />
 
-                    <div class="field-label" style="margin-top:16px;">Password</div>
+                    <div class="field-label mt-4">Password</div>
                     <input type="password" x-model="authPassword" placeholder="Masukkan password" />
 
-                    <button class="btn btn-primary btn-block" @click="handleAuth()" :disabled="authLoading" style="margin-top:20px;">
+                    <button class="btn btn-primary w-full mt-5" @click="handleAuth()" :disabled="authLoading">
                         <span x-show="authLoading" class="loading-spinner"></span>
                         <span x-text="authMode === 'login' ? 'Login' : 'Daftar'"></span>
                     </button>
 
-                    <div class="auth-switch">
+                    <div class="text-center text-sm text-[var(--text-muted)] mt-4">
                         <span x-text="authMode === 'login' ? 'Belum punya akun?' : 'Sudah punya akun?'"></span>
-                        <a @click="authMode = authMode === 'login' ? 'register' : 'login'">
+                        <a @click="authMode = authMode === 'login' ? 'register' : 'login'" class="text-[var(--blue)] font-bold cursor-pointer">
                             <span x-text="authMode === 'login' ? 'Daftar' : 'Login'"></span>
                         </a>
                     </div>
@@ -230,9 +184,9 @@
         <!-- ========== HOME ========== -->
         <section x-show="view === 'home'">
             <div class="hero">
-                <span class="hero-badge"><span class="dot"></span> Simple · Fast · Shareable</span>
-                <h1 class="hero-title">Share Notes<br><span class="accent">Instantly</span></h1>
-                <p class="hero-subtitle">Buat dan bagikan catatan lewat link unik.</p>
+                <span class="inline-flex items-center gap-2 bg-white dark:bg-[#131b2e] rounded-full px-5 py-2.5 text-sm font-bold text-[var(--blue)] shadow-[var(--shadow)] mb-5"><span class="w-1.5 h-1.5 rounded-full bg-[var(--blue)]"></span> Simple · Fast · Shareable</span>
+                <h1 class="text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight">Share Notes<br><span class="text-[var(--blue)] underline decoration-2 underline-offset-4">Instantly</span></h1>
+                <p class="max-w-lg mx-auto mt-4 text-[var(--text-muted)] text-base leading-relaxed">Buat dan bagikan catatan lewat link unik.</p>
                 <div class="key-search">
                     <span>🔗</span>
                     <input type="text" x-model="searchKey" placeholder="Masukkan kode catatan..." maxlength="32" @keydown.enter="openByKey()" />
@@ -243,8 +197,8 @@
             <!-- My Notes (if authenticated) -->
             <template x-if="isAuthenticated">
                 <div>
-                    <div class="section-header">
-                        <div><h2>Catatan Saya</h2><span class="muted" x-text="myNotes.length + ' catatan'"></span></div>
+                    <div class="flex items-end justify-between mt-8 mb-4">
+                        <div><h2 class="text-2xl font-extrabold">Catatan Saya</h2><span class="text-sm text-[var(--text-muted)]" x-text="myNotes.length + ' catatan'"></span></div>
                         <button class="btn btn-secondary" @click="view = 'create'; resetForm()">+ Buat</button>
                     </div>
                     <div class="note-grid">
@@ -253,16 +207,16 @@
                         </template>
                         <template x-for="(n, i) in myNotes" :key="n.id">
                             <div class="note-card" @click="viewNote(n.id)">
-                                <div class="note-card-top">
-                                    <div class="note-icon" :style="'background:' + iconBgs[i % iconBgs.length]" x-text="icons[i % icons.length]"></div>
-                                    <div class="note-card-badges">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg" :style="'background:' + iconBgs[i % iconBgs.length]" x-text="icons[i % icons.length]"></div>
+                                    <div class="flex gap-2">
                                         <span class="badge key" x-text="n.id.slice(0,4)"></span>
                                         <span class="badge" :class="n.mode" x-text="n.mode === 'public' ? '🌍 Public' : '🔒 Private'"></span>
                                         <span class="badge owner">👤 Owner</span>
                                     </div>
                                 </div>
-                                <h3 class="note-card-title" x-text="n.title"></h3>
-                                <div class="note-card-footer">
+                                <h3 class="text-lg font-bold" x-text="n.title"></h3>
+                                <div class="flex justify-between mt-3 pt-3 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
                                     <span x-text="'🕐 ' + timeAgo(n.created_at)"></span>
                                     <span></span>
                                 </div>
@@ -273,8 +227,8 @@
             </template>
 
             <!-- Public Notes -->
-            <div class="section-header" style="margin-top:20px;">
-                <div><h2>Catatan Publik Terbaru</h2><span class="muted" x-text="recentPublic.length + ' catatan publik'"></span></div>
+            <div class="flex items-end justify-between mt-6 mb-4">
+                <div><h2 class="text-2xl font-extrabold">Catatan Publik Terbaru</h2><span class="text-sm text-[var(--text-muted)]" x-text="recentPublic.length + ' catatan publik'"></span></div>
             </div>
             <div class="note-grid">
                 <template x-if="recentPublic.length === 0">
@@ -282,43 +236,43 @@
                 </template>
                 <template x-for="(n, i) in recentPublic.slice(0,4)" :key="n.id">
                     <div class="note-card" @click="viewNote(n.id)">
-                        <div class="note-card-top">
-                            <div class="note-icon" :style="'background:' + iconBgs[i % iconBgs.length]" x-text="icons[i % icons.length]"></div>
-                            <div class="note-card-badges">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg" :style="'background:' + iconBgs[i % iconBgs.length]" x-text="icons[i % icons.length]"></div>
+                            <div class="flex gap-2">
                                 <span class="badge key" x-text="n.id.slice(0,4)"></span>
                                 <span class="badge public">🌍 Public</span>
                             </div>
                         </div>
-                        <h3 class="note-card-title" x-text="n.title"></h3>
-                        <p class="note-card-excerpt" x-text="n.content?.length > 140 ? n.content.slice(0,140)+'…' : n.content"></p>
-                        <div class="note-card-footer">
+                        <h3 class="text-lg font-bold" x-text="n.title"></h3>
+                        <p class="text-sm text-[var(--text-muted)] line-clamp-2" x-text="n.content?.length > 140 ? n.content.slice(0,140)+'…' : n.content"></p>
+                        <div class="flex justify-between mt-3 pt-3 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
                             <span x-text="'🕐 ' + timeAgo(n.created_at)"></span>
                             <span x-text="(n.content?.trim().split(/\s+/).filter(Boolean).length || 0) + ' kata'"></span>
                         </div>
                     </div>
                 </template>
             </div>
-            <p class="footer-note">© 2026 Notepad Sharing — Notepad Sharing</p>
+            <p class="text-center text-[var(--text-muted)] text-xs mt-8 mb-4">© 2026 Notepad Sharing — Notepad Sharing</p>
         </section>
 
         <!-- ========== CREATE / EDITOR ========== -->
         <section x-show="view === 'create'">
-            <div class="editor-header">
-                <div class="editor-header-left">
+            <div class="flex items-center justify-between py-3">
+                <div class="flex items-center gap-3">
                     <button class="icon-btn" @click="goHome()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
                     </button>
                     <div class="brand-icon small">📄</div>
                     <span class="brand-name">Notepad Sharing</span>
                 </div>
-                <div class="editor-header-right">
+                <div>
                     <button class="icon-btn primary" @click="createNote()" :disabled="saving" title="Simpan catatan">💾</button>
                 </div>
             </div>
 
             <template x-if="!isAuthenticated">
-                <div class="visibility-banner public" style="margin-bottom:16px;">
-                    ⚠️ Anda belum login. Catatan akan dibuat tanpa pemilik. <a @click="view='auth'" style="color:var(--blue); font-weight:700; cursor:pointer;">Login</a> untuk menyimpan catatan secara permanen.
+                <div class="visibility-banner public mb-4">
+                    ⚠️ Anda belum login. Catatan akan dibuat tanpa pemilik. <a @click="view='auth'" class="text-[var(--blue)] font-bold cursor-pointer">Login</a> untuk menyimpan catatan secara permanen.
                 </div>
             </template>
 
@@ -332,20 +286,20 @@
             </div>
             <div :class="'visibility-banner ' + form.mode" x-text="form.mode === 'public' ? '🌍 Catatan publik — siapa saja dengan link bisa membuka tanpa password.' : '🔒 Catatan private — dibutuhkan password untuk membuka.'"></div>
 
-            <div x-show="form.mode === 'private'" style="margin-top:14px;">
+            <div x-show="form.mode === 'private'" class="mt-4">
                 <div class="field-label">Password Catatan</div>
                 <input type="password" x-model="form.password" placeholder="Buat password untuk catatan ini (min. 4 karakter)" />
             </div>
 
             <textarea x-model="form.content" placeholder="Mulai tulis catatanmu di sini..." @keydown.ctrl.enter="createNote()"></textarea>
 
-            <div class="btn-group">
-                <button class="btn btn-primary" @click="createNote()" :disabled="saving" style="flex:1">✨ Buat Catatan</button>
+            <div class="flex flex-wrap gap-3 mt-5">
+                <button class="btn btn-primary flex-1" @click="createNote()" :disabled="saving">✨ Buat Catatan</button>
                 <button class="btn btn-secondary" @click="view = 'list'; fetchList()">📋 Semua Catatan</button>
             </div>
 
             <!-- Hasil setelah membuat -->
-            <div x-show="resultNote" class="note-view-card" style="margin-top:20px;">
+            <div x-show="resultNote" class="note-view-card mt-5">
                 <span class="badge" :class="resultNote.mode" x-text="resultNote.mode === 'public' ? '🌍 Public' : '🔒 Private'"></span>
                 <div class="field-label" x-text="resultNote.title"></div>
                 <div class="field-label">Link bagikan</div>
@@ -354,7 +308,7 @@
                     <input type="text" :value="shareUrl(resultNote.id)" readonly />
                     <button class="btn btn-secondary" @click="copyToClipboard(shareUrl(resultNote.id))">Salin</button>
                 </div>
-                <div class="btn-group">
+                <div class="flex flex-wrap gap-3 mt-4">
                     <button class="btn btn-primary" @click="viewNote(resultNote.id)">👁️ Lihat catatan</button>
                     <button class="btn btn-secondary" @click="resetForm()">📝 Buat baru</button>
                 </div>
@@ -363,8 +317,8 @@
 
         <!-- ========== LIST (Notes tab) ========== -->
         <section x-show="view === 'list'">
-            <div class="section-header" style="margin-top:22px;">
-                <div><h2>Semua Catatan</h2><span class="muted" x-text="notes.length + ' catatan'"></span></div>
+            <div class="flex items-end justify-between mt-6 mb-4">
+                <div><h2 class="text-2xl font-extrabold">Semua Catatan</h2><span class="text-sm text-[var(--text-muted)]" x-text="notes.length + ' catatan'"></span></div>
                 <button class="btn btn-secondary" @click="view = 'create'; resetForm()">+ Catatan</button>
             </div>
             <div class="note-grid">
@@ -376,23 +330,23 @@
                         <button class="share-icon-btn" @click.stop="shareNote(n.id)" title="Bagikan catatan">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/></svg>
                         </button>
-                        <div class="note-card-top">
-                            <div class="note-icon" :style="'background:' + iconBgs[i % iconBgs.length]" x-text="icons[i % icons.length]"></div>
-                            <div class="note-card-badges">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg" :style="'background:' + iconBgs[i % iconBgs.length]" x-text="icons[i % icons.length]"></div>
+                            <div class="flex gap-2">
                                 <span class="badge key" x-text="n.id.slice(0,4)"></span>
                                 <span class="badge" :class="n.mode" x-text="n.mode === 'public' ? '🌍 Public' : '🔒 Private'"></span>
                                 <span class="badge owner" x-show="n.is_owner">👤 Owner</span>
                             </div>
                         </div>
-                        <h3 class="note-card-title" x-text="n.title"></h3>
-                        <div class="note-card-footer">
+                        <h3 class="text-lg font-bold" x-text="n.title"></h3>
+                        <div class="flex justify-between mt-3 pt-3 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
                             <span x-text="'🕐 ' + timeAgo(n.created_at)"></span>
                             <span></span>
                         </div>
                     </div>
                 </template>
             </div>
-            <div class="pagination" style="display:flex; gap:8px; justify-content:center; margin-top:20px;" x-show="listOffset > 0 || notes.length >= 20">
+            <div class="flex justify-center gap-3 mt-5" x-show="listOffset > 0 || notes.length >= 20">
                 <button class="btn btn-secondary" x-show="listOffset > 0" @click="prevPage()">← Sebelumnya</button>
                 <button class="btn btn-secondary" x-show="notes.length >= 20" @click="nextPage()">Selanjutnya →</button>
             </div>
@@ -400,8 +354,8 @@
 
         <!-- ========== VIEW ========== -->
         <section x-show="view === 'view'">
-            <div class="editor-header">
-                <div class="editor-header-left">
+            <div class="flex items-center justify-between py-3">
+                <div class="flex items-center gap-3">
                     <button class="icon-btn" @click="goHome()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="20" x2="5" y2="20"/><polyline points="12 19 5 12 12 5"/></svg>
                     </button>
@@ -413,19 +367,19 @@
             <!-- Note content -->
             <template x-if="viewedNote">
                 <div class="note-view-card">
-                    <div style="display:flex; justify-content:space-between;">
+                    <div class="flex justify-between items-start">
                         <div>
-                            <div style="font-size:19px;font-weight:800;" x-text="'📄 ' + viewedNote.title"></div>
-                            <div style="font-size:13px;color:var(--text-muted);margin-top:6px;">
+                            <div class="text-xl font-extrabold" x-text="'📄 ' + viewedNote.title"></div>
+                            <div class="text-sm text-[var(--text-muted)] mt-2 flex flex-wrap items-center gap-2">
                                 <span class="badge" :class="viewedNote.mode" x-text="viewedNote.mode === 'public' ? '🌍 Public' : '🔒 Private'"></span>
                                 <span class="badge key" x-text="viewedNote.id"></span>
                                 <span x-text="' · ' + (viewedNote.content?.trim().split(/\s+/).filter(Boolean).length || 0) + ' kata'"></span>
-                                <span class="badge owner" x-show="viewedNote.is_owner" style="margin-left:6px;">👤 Owner</span>
+                                <span class="badge owner" x-show="viewedNote.is_owner" class="ml-1">👤 Owner</span>
                             </div>
                         </div>
                     </div>
                     <div class="note-view-content" x-text="viewedNote.content"></div>
-                    <div class="btn-group">
+                    <div class="flex flex-wrap gap-3 mt-4">
                         <button class="btn btn-secondary" @click="copyToClipboard(shareUrl(viewedNote.id))">🔗 Salin link</button>
                         <button class="btn btn-secondary" @click="editNote(viewedNote.id)" x-show="viewedNote.is_owner">✏️ Edit</button>
                         <button class="btn btn-danger" @click="deleteNote(viewedNote.id)" x-show="viewedNote.is_owner">🗑️ Hapus</button>
@@ -437,14 +391,14 @@
             <!-- Locked state -->
             <template x-if="lockedNote">
                 <div class="note-view-card">
-                    <div class="locked-message">
-                        <span style="font-size:34px;">🔒</span>
-                        <strong>Catatan ini dilindungi password</strong>
+                    <div class="text-center py-5">
+                        <span class="text-4xl">🔒</span>
+                        <strong class="block mt-1">Catatan ini dilindungi password</strong>
                         <p x-text="lockedNote.title"></p>
                         <p>Masukkan password untuk melihat isinya</p>
                     </div>
-                    <input type="password" x-model="unlockPassword" placeholder="Masukkan password" style="margin-top:12px;" />
-                    <div class="btn-group">
+                    <input type="password" x-model="unlockPassword" placeholder="Masukkan password" class="mt-3" />
+                    <div class="flex flex-wrap gap-3 mt-4">
                         <button class="btn btn-primary" @click="unlockNote(lockedNote.id)">🔓 Buka</button>
                         <button class="btn btn-secondary" @click="goHome()">← Kembali</button>
                     </div>
@@ -454,7 +408,7 @@
             <!-- Edit state -->
             <template x-if="editingNote">
                 <div class="note-view-card">
-                    <div style="font-size:17px;font-weight:800;">✏️ Edit catatan</div>
+                    <div class="text-lg font-extrabold">✏️ Edit catatan</div>
                     <div class="field-label">Judul</div>
                     <input type="text" x-model="editForm.title" maxlength="200" />
                     <textarea x-model="editForm.content" style="min-height:220px;"></textarea>
@@ -462,7 +416,7 @@
                         <div class="field-label">Password (untuk verifikasi)</div>
                         <input type="password" x-model="editForm.password" placeholder="Masukkan password catatan" />
                     </div>
-                    <div class="btn-group">
+                    <div class="flex flex-wrap gap-3 mt-4">
                         <button class="btn btn-primary" @click="saveEdit()" :disabled="saving">💾 Simpan</button>
                         <button class="btn btn-secondary" @click="cancelEdit()">↩️ Batal</button>
                     </div>
@@ -473,28 +427,28 @@
         <!-- ========== PROFILE ========== -->
         <section x-show="view === 'profile'">
             <div class="profile-card">
-                <div class="profile-avatar">👤</div>
-                <h3 x-text="isAuthenticated ? userEmail : 'Tanpa akun'"></h3>
-                <p x-text="isAuthenticated ? 'Akun terdaftar — semua catatan tersimpan di server.' : 'Notepad Sharing sengaja dibuat tanpa sistem login. Setiap catatan punya kode unik sendiri — simpan kode atau link-nya untuk mengakses catatan itu lagi nanti.'"></p>
-                <div class="profile-info-list" style="margin-top:22px; text-align:left;">
-                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md); margin-bottom:8px;">
+                <div class="w-16 h-16 rounded-full bg-[var(--blue-light)] text-[var(--blue)] text-3xl flex items-center justify-center mx-auto mb-4">👤</div>
+                <h3 class="text-lg font-bold" x-text="isAuthenticated ? userEmail : 'Tanpa akun'"></h3>
+                <p class="text-sm text-[var(--text-muted)] mt-2" x-text="isAuthenticated ? 'Akun terdaftar — semua catatan tersimpan di server.' : 'Notepad Sharing sengaja dibuat tanpa sistem login. Setiap catatan punya kode unik sendiri — simpan kode atau link-nya untuk mengakses catatan itu lagi nanti.'"></p>
+                <div class="mt-6 text-left space-y-2">
+                    <div class="flex justify-between py-3 px-4 bg-[var(--bg-2)] rounded-[var(--radius-md)]">
                         <span>Mode publik</span>
                         <span>🌍 Bisa dibuka siapa saja dengan link</span>
                     </div>
-                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md); margin-bottom:8px;">
+                    <div class="flex justify-between py-3 px-4 bg-[var(--bg-2)] rounded-[var(--radius-md)]">
                         <span>Mode private</span>
                         <span>🔒 Dilindungi password (terenkripsi AES-256-GCM)</span>
                     </div>
-                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md);">
+                    <div class="flex justify-between py-3 px-4 bg-[var(--bg-2)] rounded-[var(--radius-md)]">
                         <span>Penyimpanan</span>
                         <span>☁️ Tersimpan di server Notepad Sharing</span>
                     </div>
-                    <div class="row" style="display:flex; justify-content:space-between; padding:12px 14px; background:var(--bg-2); border-radius:var(--radius-md); margin-top:8px;">
+                    <div class="flex justify-between py-3 px-4 bg-[var(--bg-2)] rounded-[var(--radius-md)]">
                         <span>Keamanan</span>
                         <span>🔐 JWT + Refresh Token Rotation</span>
                     </div>
                 </div>
-                <button class="btn btn-danger" style="margin-top:20px;" x-show="isAuthenticated" @click="logout()">🚪 Logout</button>
+                <button class="btn btn-danger mt-6" x-show="isAuthenticated" @click="logout()">🚪 Logout</button>
             </div>
         </section>
     </main>
@@ -523,7 +477,7 @@
         dayjs.locale('id');
 
         function notepadApp() {
-            const API = '/api';
+            const API_BASE = 'https://notepad-sharing-production.up.railway.app/api'; // absolute path as requested
             const icons = ["🗒️","📗","🗂️","📘","🧾","📙"];
             const iconBgs = ["#eef2ff","#e9f9f1","#fdf1e3","#f0f4ff","#fff0f5","#eefcf7"];
 
@@ -537,7 +491,7 @@
                 toastType: 'success',
 
                 // Auth
-                authMode: 'login', // 'login' | 'register'
+                authMode: 'login',
                 authEmail: '',
                 authPassword: '',
                 authLoading: false,
@@ -571,7 +525,6 @@
                     const saved = localStorage.getItem('notepad-theme');
                     this.darkMode = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-                    // Check for saved token
                     const token = localStorage.getItem('access_token');
                     const email = localStorage.getItem('user_email');
                     if (token && email) {
@@ -646,14 +599,14 @@
                     this.authLoading = true;
                     try {
                         const endpoint = this.authMode === 'login' ? '/auth/login' : '/auth/register';
-                        const res = await fetch(API + endpoint, {
+                        const res = await fetch(API_BASE + endpoint, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 email: this.authEmail,
                                 password: this.authPassword
                             }),
-                            credentials: 'include' // for cookie-based refresh token
+                            credentials: 'include'
                         });
                         const data = await res.json();
                         if (!res.ok) throw new Error(data.error || 'Auth failed');
@@ -679,13 +632,11 @@
 
                 async logout() {
                     try {
-                        await fetch(API + '/auth/logout', {
+                        await fetch(API_BASE + '/auth/logout', {
                             method: 'POST',
                             credentials: 'include'
                         });
-                    } catch (e) {
-                        // ignore logout errors
-                    }
+                    } catch (e) {}
                     localStorage.removeItem('access_token');
                     localStorage.removeItem('user_email');
                     this.accessToken = '';
@@ -706,16 +657,15 @@
                         headers['Authorization'] = 'Bearer ' + this.accessToken;
                     }
 
-                    const res = await fetch(API + path, {
+                    const res = await fetch(API_BASE + path, {
                         ...options,
                         headers,
                         credentials: 'include'
                     });
 
-                    // If token expired, try refresh
                     if (res.status === 401 && this.isAuthenticated) {
                         try {
-                            const refreshRes = await fetch(API + '/auth/refresh', {
+                            const refreshRes = await fetch(API_BASE + '/auth/refresh', {
                                 method: 'POST',
                                 credentials: 'include'
                             });
@@ -723,8 +673,7 @@
                                 const data = await refreshRes.json();
                                 this.accessToken = data.access_token;
                                 localStorage.setItem('access_token', this.accessToken);
-                                // Retry original request
-                                const retryRes = await fetch(API + path, {
+                                const retryRes = await fetch(API_BASE + path, {
                                     ...options,
                                     headers: {
                                         'Content-Type': 'application/json',
@@ -736,7 +685,6 @@
                                 if (!retryRes.ok) throw await retryRes.json();
                                 return retryRes;
                             }
-                            // Refresh failed
                             this.logout();
                             throw new Error('Sesi berakhir. Silakan login ulang.');
                         } catch (e) {
@@ -754,7 +702,7 @@
                 // ============ NOTES API ============
                 async fetchRecentPublic() {
                     try {
-                        const res = await fetch(API + '/notes?limit=50');
+                        const res = await fetch(API_BASE + '/notes?limit=50');
                         const data = await res.json();
                         this.recentPublic = (data.notes || []).filter(n => n.mode === 'public');
                     } catch (e) {
@@ -836,16 +784,14 @@
                     this.lockedNote = null;
                     this.editingNote = null;
                     try {
-                        const res = await fetch(API + '/notes/' + id);
+                        const res = await fetch(API_BASE + '/notes/' + id);
                         const data = await res.json();
                         if (!res.ok) throw new Error(data.error || 'Catatan tidak ditemukan');
                         if (data.locked) {
                             this.lockedNote = data;
                             return;
                         }
-                        // Check if user owns this note
                         if (this.isAuthenticated && data.is_owner === undefined) {
-                            // Try to fetch with auth to get owner status
                             try {
                                 const authRes = await this.request('/notes/' + id);
                                 const authData = await authRes.json();
@@ -864,7 +810,7 @@
                 async unlockNote(id) {
                     if (!this.unlockPassword) return this.toast('Masukkan password', 'error');
                     try {
-                        const res = await fetch(API + '/notes/' + id + '/unlock', {
+                        const res = await fetch(API_BASE + '/notes/' + id + '/unlock', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ password: this.unlockPassword }),
@@ -872,7 +818,6 @@
                         const data = await res.json();
                         if (!res.ok) throw new Error(data.error || 'Password salah');
                         data.mode = 'private';
-                        // Check if user owns this note
                         if (this.isAuthenticated) {
                             try {
                                 const authRes = await this.request('/notes/' + id);
@@ -924,7 +869,7 @@
                             method: 'PUT',
                             body: JSON.stringify(payload),
                         });
-                        const data = await res.json();
+                        await res.json();
                         this.toast('✅ Catatan berhasil diupdate!');
                         this.editingNote = null;
                         if (this.isAuthenticated) this.fetchMyNotes();
@@ -939,7 +884,6 @@
                 async deleteNote(id) {
                     if (!confirm('Yakin ingin menghapus catatan ini?')) return;
 
-                    // Check if private note needs password
                     let password = null;
                     if (this.viewedNote && this.viewedNote.mode === 'private') {
                         password = prompt('Masukkan password untuk menghapus:');
@@ -955,6 +899,7 @@
                             method: 'DELETE',
                             body: JSON.stringify(payload),
                         });
+                        await res.json();
                         this.toast('🗑️ Catatan berhasil dihapus');
                         this.view = 'home';
                         this.fetchRecentPublic();

@@ -65,12 +65,13 @@ func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
 
-		// DEVELOPMENT: Allow all
 		if os.Getenv("APP_ENV") == "development" {
-			c.Header("Access-Control-Allow-Origin", "*")
+			if origin != "" {
+				c.Header("Access-Control-Allow-Origin", origin)
+				c.Header("Access-Control-Allow-Credentials", "true")
+			}
 			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
 			if c.Request.Method == "OPTIONS" {
 				c.AbortWithStatus(204)
 				return
@@ -86,15 +87,12 @@ func corsMiddleware() gin.HandlerFunc {
 			"http://localhost:3000":           true,
 			"http://localhost:8080":           true,
 		}
-
 		if allowed[origin] {
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Access-Control-Allow-Credentials", "true")
 		}
-
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
@@ -102,7 +100,6 @@ func corsMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
-
 func healthCheck(c *gin.Context) {
 	c.JSON(200, gin.H{"status": "ok"})
 }
