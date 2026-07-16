@@ -59,8 +59,10 @@ func main() {
 
 	jwtManager := authutil.NewJWTManager(cfg.JWTSecret, cfg.AccessTokenTTL)
 
+	mailer := service.NewMailer(cfg.ResendAPIKey, cfg.FromEmail, cfg.BaseURL)
+
 	noteService := service.NewNoteService(queries)
-	authService := service.NewAuthService(queries, jwtManager, cfg.RefreshTokenTTL)
+	authService := service.NewAuthService(queries, jwtManager, cfg.RefreshTokenTTL, mailer)
 
 	noteHandler := handler.NewNoteHandler(noteService)
 	authHandler := handler.NewAuthHandler(authService, cfg.IsProd)
@@ -69,8 +71,12 @@ func main() {
 	cleaner := service.NewSessionCleaner(queries, 1*time.Hour)
 	go cleaner.Start(ctx)
 
+	// Jalankan verification cleaner di background — cleanup unverified users setiap 6 jam
+	verificationCleaner := service.NewVerificationCleaner(queries, 6*time.Hour)
+	go verificationCleaner.Start(ctx)
+
 	// Buat HTTP server dari router
-	r := router.New(noteHandler, authHandler, jwtManager)
+	r := router.New(noteHandler, authHandler, jwtManager, queries)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,

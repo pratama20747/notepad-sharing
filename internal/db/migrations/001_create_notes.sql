@@ -2,8 +2,13 @@ CREATE TABLE IF NOT EXISTS users (
     id            VARCHAR(21) PRIMARY KEY,
     email         VARCHAR(255) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    -- Email verification
+    email_verified           BOOLEAN NOT NULL DEFAULT false,
+    verification_token_hash  VARCHAR(64),
+    verification_expires_at  TIMESTAMPTZ,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_users_verification_token_hash ON users (verification_token_hash);
 
 CREATE TABLE IF NOT EXISTS sessions (
     id         VARCHAR(21) PRIMARY KEY,

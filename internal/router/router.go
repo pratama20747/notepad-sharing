@@ -1,11 +1,13 @@
 package router
 
 import (
-	"os" // ⭐ Jangan lupa import os
+	"os"
 
 	"notepad-sharelink/internal/authutil"
 	"notepad-sharelink/internal/handler"
 	"notepad-sharelink/internal/middleware"
+
+	"notepad-sharelink/internal/db/sqlc"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,6 +16,7 @@ func New(
 	noteHandler *handler.NoteHandler,
 	authHandler *handler.AuthHandler,
 	jwtManager *authutil.JWTManager,
+	queries *sqlc.Queries,
 ) *gin.Engine {
 	r := gin.New()
 
@@ -32,9 +35,16 @@ func New(
 		auth.POST("/login", authHandler.Login)
 		auth.POST("/refresh", authHandler.Refresh)
 		auth.POST("/logout", authHandler.Logout)
+		auth.GET("/verify-email", authHandler.VerifyEmail)
 		auth.POST("/login-mobile", authHandler.MobileLoginHandler)
 		auth.POST("/refresh-mobile", authHandler.MobileRefreshHandler)
 		auth.POST("/logout-mobile", authHandler.MobileLogoutHandler)
+
+		authedAuth := auth.Group("")
+		authedAuth.Use(middleware.RequireAuth(jwtManager))
+		{
+			authedAuth.POST("/resend-verification", authHandler.ResendVerification)
+		}
 	}
 
 	// Notes routes
@@ -45,6 +55,7 @@ func New(
 
 		authed := notes.Group("")
 		authed.Use(middleware.RequireAuth(jwtManager))
+		authed.Use(middleware.RequireVerified(queries))
 		{
 			authed.GET("", noteHandler.List)
 			authed.POST("", noteHandler.Create)
@@ -60,7 +71,7 @@ func New(
 	return r
 }
 
-// ⭐ Fixed: CORS middleware
+// CORS middleware
 func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")

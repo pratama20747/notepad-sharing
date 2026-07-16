@@ -20,6 +20,10 @@ type Config struct {
 	// - Cookie Secure flag (true di production = HTTPS only)
 	// - Log format (JSON di production, text di development)
 	IsProd bool
+	// Resend API untuk email verifikasi
+	ResendAPIKey string
+	FromEmail    string
+	BaseURL      string
 }
 
 // Load membaca file .env (jika ada) lalu memvalidasi environment variable wajib.
@@ -48,6 +52,19 @@ func Load() (*Config, error) {
 
 	isProd := os.Getenv("APP_ENV") == "production"
 
+	resendAPIKey := os.Getenv("RESEND_API_KEY")
+	if resendAPIKey == "" {
+		return nil, fmt.Errorf("environment variable RESEND_API_KEY wajib di-set")
+	}
+	fromEmail := os.Getenv("FROM_EMAIL")
+	if fromEmail == "" {
+		fromEmail = "onboarding@resend.dev" // default sandbox Resend
+	}
+	baseURL := os.Getenv("BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:" + port
+	}
+
 	return &Config{
 		DatabaseURL:     dbURL,
 		Port:            port,
@@ -55,5 +72,8 @@ func Load() (*Config, error) {
 		AccessTokenTTL:  15 * time.Minute,
 		RefreshTokenTTL: 30 * 24 * time.Hour,
 		IsProd:          isProd,
+		ResendAPIKey:    resendAPIKey,
+		FromEmail:       fromEmail,
+		BaseURL:         baseURL,
 	}, nil
 }

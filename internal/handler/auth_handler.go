@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"notepad-sharelink/internal/middleware"
 	"notepad-sharelink/internal/service"
 )
 
@@ -168,6 +169,40 @@ func respondAuthError(c *gin.Context, err error) {
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
+}
+
+// VerifyEmail menangani GET /api/auth/verify-email?token=xxx.
+// Endpoint PUBLIK — user klik link dari email, tidak perlu login.
+func (h *AuthHandler) VerifyEmail(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "token wajib diisi"})
+		return
+	}
+
+	if err := h.svc.VerifyEmail(c.Request.Context(), token); err != nil {
+		if errors.Is(err, service.ErrTokenInvalid) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "token tidak valid atau sudah expired"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "email berhasil diverifikasi"})
+}
+
+// ResendVerification menangani POST /api/auth/resend-verification.
+// Endpoint BUTUH LOGIN — pakai access token buat tau user mana yang minta resend.
+func (h *AuthHandler) ResendVerification(c *gin.Context) {
+	userID := middleware.UserID(c)
+
+	if err := h.svc.ResendVerificationEmail(c.Request.Context(), userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal mengirim ulang email verifikasi"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "email verifikasi telah dikirim ulang"})
 }
 
 // MobileRefreshHandler adalah alternatif endpoint refresh untuk Flutter mobile

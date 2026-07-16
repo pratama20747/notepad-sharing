@@ -6,6 +6,8 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
@@ -18,13 +20,19 @@ type Querier interface {
 	// audit log jika diperlukan di masa depan.
 	DeleteExpiredAndRevokedSessions(ctx context.Context) (int64, error)
 	DeleteNote(ctx context.Context, id string) (int64, error)
+	// Hapus user yang belum verifikasi email dan sudah lewat 2 hari sejak register.
+	// ON DELETE CASCADE di tabel sessions & notes otomatis ikut membersihkan data terkait.
+	DeleteUnverifiedUsers(ctx context.Context) (int64, error)
 	GetNote(ctx context.Context, id string) (Note, error)
 	GetSessionByTokenHash(ctx context.Context, tokenHash string) (Session, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id string) (User, error)
+	GetUserByVerificationTokenHash(ctx context.Context, verificationTokenHash pgtype.Text) (User, error)
 	ListNotesByUser(ctx context.Context, arg ListNotesByUserParams) ([]ListNotesByUserRow, error)
+	MarkEmailVerified(ctx context.Context, id string) error
 	RevokeSession(ctx context.Context, id string) error
 	RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error
+	SetVerificationToken(ctx context.Context, arg SetVerificationTokenParams) error
 	UpdateNoteContent(ctx context.Context, arg UpdateNoteContentParams) (Note, error)
 }
 

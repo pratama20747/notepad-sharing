@@ -7,12 +7,14 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, email, password_hash)
 VALUES ($1, $2, $3)
-RETURNING id, email, password_hash, created_at
+RETURNING id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, created_at
 `
 
 type CreateUserParams struct {
@@ -28,13 +30,32 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
+		&i.EmailVerified,
+		&i.VerificationTokenHash,
+		&i.VerificationExpiresAt,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
+const deleteUnverifiedUsers = `-- name: DeleteUnverifiedUsers :execrows
+DELETE FROM users
+WHERE email_verified = false
+  AND created_at < now() - INTERVAL '2 days'
+`
+
+// Hapus user yang belum verifikasi email dan sudah lewat 2 hari sejak register.
+// ON DELETE CASCADE di tabel sessions & notes otomatis ikut membersihkan data terkait.
+func (q *Queries) DeleteUnverifiedUsers(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteUnverifiedUsers)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, created_at FROM users WHERE email = $1
+SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, created_at FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -44,13 +65,16 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
+		&i.EmailVerified,
+		&i.VerificationTokenHash,
+		&i.VerificationExpiresAt,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, created_at FROM users WHERE id = $1
+SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, created_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
@@ -60,7 +84,57 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
+		&i.EmailVerified,
+		&i.VerificationTokenHash,
+		&i.VerificationExpiresAt,
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getUserByVerificationTokenHash = `-- name: GetUserByVerificationTokenHash :one
+SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, created_at FROM users WHERE verification_token_hash = $1
+`
+
+func (q *Queries) GetUserByVerificationTokenHash(ctx context.Context, verificationTokenHash pgtype.Text) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByVerificationTokenHash, verificationTokenHash)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.EmailVerified,
+		&i.VerificationTokenHash,
+		&i.VerificationExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const markEmailVerified = `-- name: MarkEmailVerified :exec
+UPDATE users
+SET email_verified = true, verification_token_hash = NULL, verification_expires_at = NULL
+WHERE id = $1
+`
+
+func (q *Queries) MarkEmailVerified(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, markEmailVerified, id)
+	return err
+}
+
+const setVerificationToken = `-- name: SetVerificationToken :exec
+UPDATE users
+SET verification_token_hash = $2, verification_expires_at = $3
+WHERE id = $1
+`
+
+type SetVerificationTokenParams struct {
+	ID                    string             `json:"id"`
+	VerificationTokenHash pgtype.Text        `json:"verification_token_hash"`
+	VerificationExpiresAt pgtype.Timestamptz `json:"verification_expires_at"`
+}
+
+func (q *Queries) SetVerificationToken(ctx context.Context, arg SetVerificationTokenParams) error {
+	_, err := q.db.Exec(ctx, setVerificationToken, arg.ID, arg.VerificationTokenHash, arg.VerificationExpiresAt)
+	return err
 }

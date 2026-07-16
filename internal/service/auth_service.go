@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"notepad-sharelink/internal/authutil"
 	"notepad-sharelink/internal/db/sqlc"
@@ -20,7 +21,11 @@ var (
 	ErrEmailTaken        = errors.New("email sudah terdaftar")
 	ErrInvalidCredential = errors.New("email atau password salah")
 	ErrSessionInvalid    = errors.New("session tidak valid, silakan login ulang")
+	ErrTokenInvalid      = errors.New("token verifikasi tidak valid atau sudah expired")
+	ErrEmailNotVerified  = errors.New("email belum diverifikasi")
 )
+
+const verificationTokenTTL = 24 * time.Hour
 
 type TokenPair struct {
 	AccessToken  string
@@ -31,10 +36,11 @@ type AuthService struct {
 	q          *sqlc.Queries
 	jwtManager *authutil.JWTManager
 	refreshTTL time.Duration
+	mailer     *Mailer
 }
 
-func NewAuthService(q *sqlc.Queries, jwtManager *authutil.JWTManager, refreshTTL time.Duration) *AuthService {
-	return &AuthService{q: q, jwtManager: jwtManager, refreshTTL: refreshTTL}
+func NewAuthService(q *sqlc.Queries, jwtManager *authutil.JWTManager, refreshTTL time.Duration, mailer *Mailer) *AuthService {
+	return &AuthService{q: q, jwtManager: jwtManager, refreshTTL: refreshTTL, mailer: mailer}
 }
 
 // Register membuat user baru lalu langsung mengembalikan token pair (auto-login).
@@ -64,6 +70,21 @@ func (s *AuthService) Register(ctx context.Context, email, password, userAgent s
 			return TokenPair{}, ErrEmailTaken
 		}
 		return TokenPair{}, err
+	}
+
+	// Generate & simpan token verifikasi, lalu kirim email (best-effort —
+	// kalau gagal kirim, user tetap bisa minta resend nanti; register tidak dibatalkan).
+	token, err := authutil.GenerateVerificationToken()
+	if err == nil {
+		_ = s.q.SetVerificationToken(ctx, sqlc.SetVerificationTokenParams{
+			ID:                    id,
+			VerificationTokenHash: pgtype.Text{String: authutil.HashVerificationToken(token), Valid: true},
+			VerificationExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(verificationTokenTTL), Valid: true},
+		})
+		go func() {
+			// Kirim di background supaya response register tidak nunggu Resend.
+			_ = s.mailer.SendVerificationEmail(context.Background(), email, token)
+		}()
 	}
 
 	return s.issueTokenPair(ctx, id, userAgent)
@@ -125,6 +146,60 @@ func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
 		return ctx.Err()
 	}
 	return s.q.RevokeSessionByTokenHash(ctx, authutil.HashRefreshToken(refreshToken))
+}
+
+// VerifyEmail mencocokkan token dari link email, menandai user sebagai verified
+// kalau valid dan belum expired.
+func (s *AuthService) VerifyEmail(ctx context.Context, token string) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
+	hash := authutil.HashVerificationToken(token)
+	u, err := s.q.GetUserByVerificationTokenHash(ctx, pgtype.Text{String: hash, Valid: true})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrTokenInvalid
+		}
+		return err
+	}
+
+	if !u.VerificationExpiresAt.Valid || time.Now().After(u.VerificationExpiresAt.Time) {
+		return ErrTokenInvalid
+	}
+
+	return s.q.MarkEmailVerified(ctx, u.ID)
+}
+
+// ResendVerificationEmail generate token baru & kirim ulang, dipanggil kalau
+// user belum sempat verifikasi / link lama sudah expired.
+func (s *AuthService) ResendVerificationEmail(ctx context.Context, userID string) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
+	u, err := s.q.GetUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if u.EmailVerified {
+		return nil // sudah verified, no-op
+	}
+
+	token, err := authutil.GenerateVerificationToken()
+	if err != nil {
+		return err
+	}
+
+	if err := s.q.SetVerificationToken(ctx, sqlc.SetVerificationTokenParams{
+		ID:                    userID,
+		VerificationTokenHash: pgtype.Text{String: authutil.HashVerificationToken(token), Valid: true},
+		VerificationExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(verificationTokenTTL), Valid: true},
+	}); err != nil {
+		return err
+	}
+
+	return s.mailer.SendVerificationEmail(ctx, u.Email, token)
 }
 
 func (s *AuthService) issueTokenPair(ctx context.Context, userID, userAgent string) (TokenPair, error) {

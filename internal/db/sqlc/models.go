@@ -37,8 +37,11 @@ type Session struct {
 }
 
 type User struct {
-	ID           string    `json:"id"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"password_hash"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID                    string             `json:"id"`
+	Email                 string             `json:"email"`
+	PasswordHash          string             `json:"password_hash"`
+	EmailVerified         bool               `json:"email_verified"`
+	VerificationTokenHash pgtype.Text        `json:"verification_token_hash"`
+	VerificationExpiresAt pgtype.Timestamptz `json:"verification_expires_at"`
+	CreatedAt             time.Time          `json:"created_at"`
 }
