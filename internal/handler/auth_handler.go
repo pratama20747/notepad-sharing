@@ -231,9 +231,9 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // setRefreshTokenCookie menyimpan refresh token ke HttpOnly cookie.
 // HttpOnly: tidak bisa diakses JavaScript → aman dari XSS
 // Secure: hanya dikirim lewat HTTPS (di production)
-// SameSite=Strict: tidak dikirim di cross-site request → aman dari CSRF
+// SameSite=None: cookie dikirim di cross-site request (dibutuhkan untuk embed / share link di berbagai domain)
 func (h *AuthHandler) setRefreshTokenCookie(c *gin.Context, token string) {
-	c.SetSameSite(http.SameSiteStrictMode)
+	c.SetSameSite(http.SameSiteNoneMode)
 	c.SetCookie(
 		refreshTokenCookie,
 		token,
@@ -247,7 +247,7 @@ func (h *AuthHandler) setRefreshTokenCookie(c *gin.Context, token string) {
 
 // clearRefreshTokenCookie menghapus cookie refresh token (set MaxAge = -1).
 func (h *AuthHandler) clearRefreshTokenCookie(c *gin.Context) {
-	c.SetSameSite(http.SameSiteStrictMode)
+	c.SetSameSite(http.SameSiteNoneMode)
 	c.SetCookie(
 		refreshTokenCookie,
 		"",
