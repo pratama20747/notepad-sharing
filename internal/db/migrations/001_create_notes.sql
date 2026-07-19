@@ -1,41 +1,61 @@
+-- ============================================================
+-- TABEL users
+-- ============================================================
 CREATE TABLE IF NOT EXISTS users (
-    id            VARCHAR(21) PRIMARY KEY,
-    email         VARCHAR(255) NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
+    id                            VARCHAR(21) PRIMARY KEY,
+    email                         VARCHAR(255) NOT NULL UNIQUE,
+    password_hash                 TEXT NOT NULL DEFAULT '',
     -- Email verification
-    email_verified           BOOLEAN NOT NULL DEFAULT false,
-    verification_token_hash  VARCHAR(64),
-    verification_expires_at  TIMESTAMPTZ,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    email_verified                BOOLEAN NOT NULL DEFAULT false,
+    verification_token_hash       VARCHAR(64),
+    verification_expires_at       TIMESTAMPTZ,
+    -- Google OAuth
+    google_id                     VARCHAR(255) UNIQUE,
+    -- Pending password merge (untuk akun Google yang mau setup password)
+    pending_password_hash         TEXT,
+    pending_password_token_hash   VARCHAR(64),
+    pending_password_expires_at   TIMESTAMPTZ,
+    created_at                    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_users_verification_token_hash ON users (verification_token_hash);
 
+CREATE INDEX IF NOT EXISTS idx_users_verification_token_hash ON users (verification_token_hash);
+CREATE INDEX IF NOT EXISTS idx_users_google_id ON users (google_id);
+CREATE INDEX IF NOT EXISTS idx_users_pending_password_token_hash ON users (pending_password_token_hash);
+
+COMMENT ON COLUMN users.google_id IS 'Sub ID dari Google OAuth, NULL kalau user belum pernah login via Google';
+COMMENT ON COLUMN users.pending_password_hash IS 'Bcrypt hash password yang MENUNGGU verifikasi email sebelum di-merge ke akun Google yang sudah ada';
+COMMENT ON COLUMN users.pending_password_token_hash IS 'SHA-256 dari token merge yang dikirim ke email';
+
+-- ============================================================
+-- TABEL sessions
+-- ============================================================
 CREATE TABLE IF NOT EXISTS sessions (
-    id         VARCHAR(21) PRIMARY KEY,
-    user_id    VARCHAR(21) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    -- token_hash: SHA-256 hex dari refresh token. Refresh token asli TIDAK
-    -- pernah disimpan, hanya hash-nya (mirip cara password disimpan).
-    token_hash VARCHAR(64) NOT NULL UNIQUE,
-    user_agent TEXT NOT NULL DEFAULT '',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    expires_at TIMESTAMPTZ NOT NULL,
-    revoked_at TIMESTAMPTZ
+    id           VARCHAR(21) PRIMARY KEY,
+    user_id      VARCHAR(21) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash   VARCHAR(64) NOT NULL UNIQUE,
+    user_agent   TEXT NOT NULL DEFAULT '',
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at   TIMESTAMPTZ NOT NULL,
+    revoked_at   TIMESTAMPTZ
 );
+
 CREATE INDEX IF NOT EXISTS idx_sessions_token_hash ON sessions (token_hash);
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions (user_id);
 
+-- ============================================================
+-- TABEL notes
+-- ============================================================
 CREATE TABLE IF NOT EXISTS notes (
-    id         VARCHAR(21) PRIMARY KEY,
-    user_id    VARCHAR(21) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    mode       VARCHAR(10) NOT NULL CHECK (mode IN ('public', 'private')),
-    -- content: plaintext (mode=public) atau nonce||ciphertext hasil AES-GCM (mode=private)
-    content    BYTEA NOT NULL,
-    -- salt: kosong untuk mode public, random 16 byte untuk mode private
-    salt       BYTEA NOT NULL DEFAULT '',
-    title      TEXT NOT NULL DEFAULT '',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id           VARCHAR(21) PRIMARY KEY,
+    user_id      VARCHAR(21) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    mode         VARCHAR(10) NOT NULL CHECK (mode IN ('public', 'private')),
+    content      BYTEA NOT NULL,
+    salt         BYTEA NOT NULL DEFAULT '',
+    title        TEXT NOT NULL DEFAULT '',
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
 CREATE INDEX IF NOT EXISTS idx_notes_created_at ON notes (created_at);
 CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes (user_id);
 

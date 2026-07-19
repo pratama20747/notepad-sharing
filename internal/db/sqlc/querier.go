@@ -11,7 +11,15 @@ import (
 )
 
 type Querier interface {
+	// Bersihkan pending_password_* pada akun Google-only yang link merge-nya
+	// tidak pernah diklik sampai expired. User & google_id TIDAK dihapus —
+	// cuma percobaan merge password yang basi ini yang dibuang, supaya
+	// attempt merge berikutnya (attempt baru) bisa mulai bersih.
+	ClearExpiredPendingPasswords(ctx context.Context) (int64, error)
 	CountNotesByUser(ctx context.Context, userID string) (int64, error)
+	// User baru yang daftar lewat Google. password_hash sengaja kosong,
+	// email_verified langsung true karena Google sudah verifikasi email-nya.
+	CreateGoogleUser(ctx context.Context, arg CreateGoogleUserParams) (User, error)
 	CreateNote(ctx context.Context, arg CreateNoteParams) (Note, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
@@ -26,12 +34,25 @@ type Querier interface {
 	GetNote(ctx context.Context, id string) (Note, error)
 	GetSessionByTokenHash(ctx context.Context, tokenHash string) (Session, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUserByGoogleID(ctx context.Context, googleID pgtype.Text) (User, error)
 	GetUserByID(ctx context.Context, id string) (User, error)
+	GetUserByPendingPasswordTokenHash(ctx context.Context, pendingPasswordTokenHash pgtype.Text) (User, error)
 	GetUserByVerificationTokenHash(ctx context.Context, verificationTokenHash pgtype.Text) (User, error)
+	// Dipakai saat user login Google dengan email yang SUDAH punya akun password.
+	// Aman langsung link (tanpa nunggu verifikasi) karena email di sini
+	// sudah dibuktikan kepemilikannya oleh Google sendiri.
+	LinkGoogleID(ctx context.Context, arg LinkGoogleIDParams) error
 	ListNotesByUser(ctx context.Context, arg ListNotesByUserParams) ([]ListNotesByUserRow, error)
 	MarkEmailVerified(ctx context.Context, id string) error
+	// Dipanggil setelah token merge terverifikasi: password pending dipindah
+	// jadi password_hash aktif, field pending dibersihkan.
+	MergePendingPassword(ctx context.Context, id string) error
 	RevokeSession(ctx context.Context, id string) error
 	RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error
+	// Simpan password "menunggu" ketika ada yang register pakai email yang
+	// sudah terdaftar sebagai akun Google-only. Password baru aktif setelah
+	// link verifikasi di-klik (lihat MergePendingPassword).
+	SetPendingPassword(ctx context.Context, arg SetPendingPasswordParams) error
 	SetVerificationToken(ctx context.Context, arg SetVerificationTokenParams) error
 	UpdateNoteContent(ctx context.Context, arg UpdateNoteContentParams) (Note, error)
 }

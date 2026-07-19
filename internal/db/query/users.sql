@@ -28,3 +28,50 @@ WHERE id = $1;
 DELETE FROM users
 WHERE email_verified = false
   AND created_at < now() - INTERVAL '2 days';
+-- name: GetUserByGoogleID :one
+SELECT * FROM users WHERE google_id = $1;
+
+-- name: CreateGoogleUser :one
+-- User baru yang daftar lewat Google. password_hash sengaja kosong,
+-- email_verified langsung true karena Google sudah verifikasi email-nya.
+INSERT INTO users (id, email, password_hash, google_id, email_verified)
+VALUES ($1, $2, '', $3, true)
+RETURNING *;
+
+-- name: LinkGoogleID :exec
+-- Dipakai saat user login Google dengan email yang SUDAH punya akun password.
+-- Aman langsung link (tanpa nunggu verifikasi) karena email di sini
+-- sudah dibuktikan kepemilikannya oleh Google sendiri.
+UPDATE users SET google_id = $2 WHERE id = $1;
+
+-- name: SetPendingPassword :exec
+-- Simpan password "menunggu" ketika ada yang register pakai email yang
+-- sudah terdaftar sebagai akun Google-only. Password baru aktif setelah
+-- link verifikasi di-klik (lihat MergePendingPassword).
+UPDATE users
+SET pending_password_hash = $2, pending_password_token_hash = $3, pending_password_expires_at = $4
+WHERE id = $1;
+
+-- name: GetUserByPendingPasswordTokenHash :one
+SELECT * FROM users WHERE pending_password_token_hash = $1;
+
+-- name: MergePendingPassword :exec
+-- Dipanggil setelah token merge terverifikasi: password pending dipindah
+-- jadi password_hash aktif, field pending dibersihkan.
+UPDATE users
+SET password_hash = pending_password_hash,
+    pending_password_hash = NULL,
+    pending_password_token_hash = NULL,
+    pending_password_expires_at = NULL
+WHERE id = $1;
+-- name: ClearExpiredPendingPasswords :execrows
+-- Bersihkan pending_password_* pada akun Google-only yang link merge-nya
+-- tidak pernah diklik sampai expired. User & google_id TIDAK dihapus —
+-- cuma percobaan merge password yang basi ini yang dibuang, supaya
+-- attempt merge berikutnya (attempt baru) bisa mulai bersih.
+UPDATE users
+SET pending_password_hash = NULL,
+    pending_password_token_hash = NULL,
+    pending_password_expires_at = NULL
+WHERE pending_password_token_hash IS NOT NULL
+  AND pending_password_expires_at < now();

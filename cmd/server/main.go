@@ -18,6 +18,7 @@ import (
 	"notepad-sharelink/internal/config"
 	"notepad-sharelink/internal/db/sqlc"
 	"notepad-sharelink/internal/handler"
+	"notepad-sharelink/internal/oauthutil"
 	"notepad-sharelink/internal/router"
 	"notepad-sharelink/internal/service"
 )
@@ -61,11 +62,18 @@ func main() {
 
 	mailer := service.NewMailer(cfg.ResendAPIKey, cfg.FromEmail, cfg.BaseURL)
 
+	googleCfg := &oauthutil.GoogleConfig{
+		ClientID:            cfg.GoogleClientID,
+		ClientSecret:        cfg.GoogleClientSecret,
+		RedirectURL:         cfg.GoogleRedirectURL,
+		FrontendRedirectURL: cfg.GoogleFrontendRedirectURL,
+	}
+
 	noteService := service.NewNoteService(queries)
 	authService := service.NewAuthService(queries, jwtManager, cfg.RefreshTokenTTL, mailer)
 
 	noteHandler := handler.NewNoteHandler(noteService)
-	authHandler := handler.NewAuthHandler(authService, cfg.IsProd)
+	authHandler := handler.NewAuthHandler(authService, cfg.IsProd, googleCfg)
 
 	// Jalankan session cleaner di background — cleanup setiap 1 jam
 	cleaner := service.NewSessionCleaner(queries, 1*time.Hour)
@@ -74,6 +82,11 @@ func main() {
 	// Jalankan verification cleaner di background — cleanup unverified users setiap 6 jam
 	verificationCleaner := service.NewVerificationCleaner(queries, 6*time.Hour)
 	go verificationCleaner.Start(ctx)
+
+	// Jalankan pending password cleaner di background — cleanup merge password
+	// yang expired (tidak pernah diklik) setiap 6 jam.
+	pendingPasswordCleaner := service.NewPendingPasswordCleaner(queries, 6*time.Hour)
+	go pendingPasswordCleaner.Start(ctx)
 
 	// Buat HTTP server dari router
 	r := router.New(noteHandler, authHandler, jwtManager, queries)
@@ -109,8 +122,6 @@ func main() {
 }
 
 // setupLogger mengkonfigurasi slog sebagai default logger.
-// Production: JSON format (mudah di-parse oleh log aggregator seperti Loki/Datadog).
-// Development: Text format (mudah dibaca manusia).
 func setupLogger(isProd bool) {
 	var handler slog.Handler
 	opts := &slog.HandlerOptions{Level: slog.LevelInfo}

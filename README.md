@@ -10,6 +10,8 @@ Fitur tambahan:
 - **Autentikasi & session** — register/login pakai email + password, session dikelola via refresh token rotation.
 - **Otorisasi per user** — setiap note terikat ke pemilik (user_id). List, update, dan delete hanya oleh pemilik. Share link (GET + unlock) tetap publik.
 - **Multi-device** — refresh token disimpan di tabel sessions, bisa login dari banyak device sekaligus.
+- **Email verification** — verifikasi email wajib sebelum bisa membuat/mengelola note. Link verifikasi dikirim via [Resend](https://resend.com).
+- **Google OAuth** — login dengan akun Google. Pengguna password bisa menautkan akun Google, dan pengguna Google bisa menambahkan password (merge via email verification).
 
 ## Stack
 
@@ -19,6 +21,7 @@ Fitur tambahan:
 - `golang.org/x/crypto` — bcrypt (hash password), argon2 (derive key enkripsi private note)
 - `github.com/golang-jwt/jwt/v5` — JWT access token
 - `crypto/aes` (GCM) — enkripsi mode private
+- [Resend](https://resend.com) — kirim email verifikasi & merge password
 
 ## Struktur folder
 
@@ -28,7 +31,7 @@ notepad-sharelink/
 ├── frontend/
 │   └── index.html               # SPA frontend (disajikan via backend)
 ├── internal/
-│   ├── authutil/                # JWT manager, hash password (bcrypt), refresh token
+│   ├── authutil/                # JWT manager, hash password (bcrypt), refresh token, verification token
 │   ├── config/                  # load env var
 │   ├── cryptoutil/              # derive key + encrypt/decrypt
 │   ├── idgen/                   # generator ID slug link
@@ -36,9 +39,10 @@ notepad-sharelink/
 │   │   ├── migrations/          # schema SQL (dipakai sqlc & migrasi manual)
 │   │   ├── query/               # query SQL sumber untuk sqlc generate
 │   │   └── sqlc/                # hasil generate sqlc
-│   ├── service/                 # business logic (auth + notes)
+│   ├── oauthutil/               # Google OAuth config & helpers
+│   ├── service/                 # business logic (auth, notes, mailer, cleaners)
 │   ├── handler/                 # HTTP handler (Gin)
-│   ├── middleware/              # auth middleware (JWT validation)
+│   ├── middleware/              # auth middleware (JWT, rate limiter, verified)
 │   └── router/                  # route registration
 ├── sqlc.yaml
 ├── go.mod
@@ -50,7 +54,7 @@ notepad-sharelink/
 ### 1. Siapkan database Neon
 
 1. Buat project di [neon.tech](https://neon.tech), catat connection string-nya.
-2. Jalankan isi `internal/db/migrations/001_create_notes.sql` ke database (lewat Neon SQL editor, `psql`, atau tool migrasi favoritmu). Untuk MVP ini belum dipasang tool migrasi otomatis — silakan tambahkan kalau mau lebih rapi.
+2. Jalankan isi `internal/db/migrations/001_create_notes.sql` ke database.
 
 ### 2. Install sqlc & generate kode
 
@@ -59,15 +63,11 @@ go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 sqlc generate
 ```
 
-Perintah ini akan mengisi folder `internal/db/sqlc/` dengan kode Go (struct tabel, Queries, dll) berdasarkan `sqlc.yaml`, schema, dan query yang sudah disiapkan.
-
 ### 3. Set environment variable
 
 ```bash
 cp .env.example .env
-# lalu isi:
-#   DATABASE_URL   — connection string Neon kamu
-#   JWT_SECRET     — secret key untuk menandatangani access token (min. 32 karakter random)
+# lalu isi semua env var yang dibutuhkan (lihat .env.example)
 ```
 
 ### 4. Install dependency & jalankan
@@ -104,20 +104,17 @@ Refresh token lama langsung di-revoke (rotation).
 Jika refresh token juga expired/invalid → client harus login ulang.
 ```
 
-**Mobile (Flutter)**: Karena Flutter tidak bisa mengelola HttpOnly cookie secara native,
-ada endpoint terpisah yang menerima refresh token via body:
+**Mobile (Flutter)**: Karena Flutter tidak bisa mengelola HttpOnly cookie secara native, ada endpoint terpisah yang menerima refresh token via body:
 
 ```
-/login-mobile  → { access_token, refresh_token }  (body response)
+/login-mobile  → { access_token, refresh_token }
 /refresh-mobile → body: { refresh_token } → { access_token, refresh_token }
 /logout-mobile  → body: { refresh_token }
 ```
 
 ### API Auth
 
-> **Catatan untuk client web**: refresh token dikirim/dibaca otomatis via HttpOnly
-> cookie oleh browser. Client tidak perlu menyimpan atau mengirim refresh token
-> secara manual. Untuk mobile (Flutter), lihat bagian [Mobile API](#mobile-api-flutter).
+> **Catatan untuk client web**: refresh token dikirim/dibaca otomatis via HttpOnly cookie oleh browser.
 
 #### Register
 
@@ -133,7 +130,8 @@ Response:
   "access_token": "eyJhbGciOiJIUzI1NiIs..."
 }
 ```
-Refresh token otomatis di-set sebagai HttpOnly cookie → tidak perlu dikelola manual.
+
+Refresh token di-set sebagai HttpOnly cookie. Email verifikasi dikirim ke inbox.
 
 #### Login
 
@@ -143,30 +141,60 @@ curl -X POST localhost:8080/api/auth/login \
   -d '{"email":"user@example.com","password":"rahasia123"}'
 ```
 
-Response — sama seperti register (hanya access_token di body, refresh token di cookie).
+Response — access_token di body, refresh token di cookie.
+
+#### Login dengan Google
+
+Redirect browser ke endpoint berikut (state disimpan di short-lived cookie untuk CSRF protection):
+
+```bash
+curl -v -X GET localhost:8080/api/auth/google/login
+```
+
+Setelah sukses, browser di-redirect ke `GOOGLE_FRONTEND_REDIRECT_URL` dengan cookie refresh_token ter-set.
 
 #### Refresh token
 
 ```bash
 curl -X POST localhost:8080/api/auth/refresh
-# no body needed — refresh token otomatis terkirim via cookie
+# refresh token otomatis terkirim via cookie
 ```
 
-Response — access_token baru di body, refresh token baru di cookie. Token lama di-revoke.
+Response — access_token baru di body, refresh token baru di cookie.
 
 #### Logout
 
 ```bash
 curl -X POST localhost:8080/api/auth/logout
-# no body needed — refresh token dibaca dari cookie
+# refresh token dibaca dari cookie
 ```
 
-Hanya session dengan refresh token tersebut yang di-revoke, device lain tidak terpengaruh. Cookie langsung dihapus.
+Session di-revoke, cookie dihapus. Device lain tidak terpengaruh.
+
+#### Verifikasi email
+
+```bash
+curl -X GET "localhost:8080/api/auth/verify-email?token=xxx"
+```
+
+Endpoint publik — user klik link dari email.
+
+#### Kirim ulang verifikasi (butuh login)
+
+```bash
+curl -X POST localhost:8080/api/auth/resend-verification \
+  -H "Authorization: Bearer <access_token>"
+```
+
+#### Verifikasi tautan password Google (dari email merge)
+
+```bash
+curl -X GET "localhost:8080/api/auth/verify-merge-password?token=xxx"
+```
+
+Endpoint publik — user klik link dari email merge. Password pending diaktifkan.
 
 ### Mobile API (Flutter)
-
-Untuk mobile client yang tidak bisa mengelola HttpOnly cookie, gunakan endpoint
-terpisah — refresh token dikirim dan dikembalikan via body.
 
 #### Login mobile
 
@@ -192,8 +220,6 @@ curl -X POST localhost:8080/api/auth/refresh-mobile \
   -d '{"refresh_token":"a1b2c3d4e5f6..."}'
 ```
 
-Response — TokenPair baru. Token lama di-revoke.
-
 #### Logout mobile
 
 ```bash
@@ -202,22 +228,18 @@ curl -X POST localhost:8080/api/auth/logout-mobile \
   -d '{"refresh_token":"a1b2c3d4e5f6..."}'
 ```
 
-Hanya session dengan refresh token tersebut yang di-revoke.
-
 ### Keamanan password (login)
 
-- Password di-hash pakai **bcrypt** (cost default = 10) — setiap hash mengandung salt acak 16 byte, sehingga hash untuk password yang sama selalu berbeda.
-- Verifikasi: server mencari user by email, lalu membandingkan input password dengan hash dari baris yang sama (`bcrypt.CompareHashAndPassword`). Binding ke user terjadi **via query**, bukan di hash-nya.
-- Bcrypt berbeda dengan Argon2id yang dipakai untuk enkripsi note private — bcrypt untuk hash password login, Argon2id untuk derive key enkripsi AES-GCM.
+- Password di-hash pakai **bcrypt** (cost default = 10) — setiap hash mengandung salt acak 16 byte.
+- Verifikasi: server mencari user by email, lalu membandingkan input password dengan hash dari baris yang sama.
+- Bcrypt berbeda dengan Argon2id yang dipakai untuk enkripsi note private.
 
 ### Refresh token vs Access token
 
 | Token | Umur | Penyimpanan DB | Cara hash |
 |---|---|---|---|
 | Access token (JWT) | 15 menit | Tidak | HMAC-SHA256 (secret server) |
-| Refresh token | 30 hari | Hash SHA-256 di tabel `sessions` | SHA-256 (cepat, karena token sudah random 32 byte) |
-
-Refresh token asli (32 byte random) tidak pernah disimpan — hanya hash SHA-256-nya. Karena entropinya tinggi (256 bit), SHA-256 sudah aman tanpa perlu bcrypt/Argon2.
+| Refresh token | 30 hari | Hash SHA-256 di tabel `sessions` | SHA-256 (token random 32 byte) |
 
 ## API Notes
 
@@ -226,7 +248,7 @@ Semua endpoint di bawah prefix `/api/notes` membutuhkan **Authorization header**
 - `GET /api/notes/:id` — share link publik
 - `POST /api/notes/:id/unlock` — unlock via password (publik)
 
-Title selalu plaintext (TEXT di DB) — judul note private tetap terlihat di daftar & saat share link.
+Selain itu, user **harus sudah verifikasi email** untuk bisa create/update/delete/list notes (dicek oleh `RequireVerified` middleware).
 
 ### Create note
 
@@ -255,21 +277,6 @@ curl "localhost:8080/api/notes?limit=10&offset=0" \
   -H "Authorization: Bearer <access_token>"
 ```
 
-Response:
-```json
-{
-  "notes": [
-    {
-      "id": "aB3xQ9Kd1mZp",
-      "mode": "public",
-      "title": "Catatan pertama",
-      "created_at": "2025-01-01T00:00:00Z",
-      "updated_at": "2025-01-01T00:00:00Z"
-    }
-  ]
-}
-```
-
 > Hanya menampilkan note milik user yang sedang login (isolasi per user).
 
 ### Get note (share link — publik)
@@ -278,13 +285,8 @@ Response:
 curl localhost:8080/api/notes/aB3xQ9Kd1mZp
 ```
 
-Response:
-```json
-{"id":"aB3xQ9Kd1mZp","mode":"public","title":"Catatan pertama","content":"Halo dunia"}
-```
-
 - Mode public → langsung dapat `title` dan `content`.
-- Mode private → `{"id":"...","mode":"private","title":"\U0001F512 Catatan privat","locked":true}`, harus unlock dulu.
+- Mode private → `{"locked":true}`, harus unlock dulu.
 
 ### Unlock note private (publik)
 
@@ -294,12 +296,7 @@ curl -X POST localhost:8080/api/notes/aB3xQ9Kd1mZp/unlock \
   -d '{"password":"secret123"}'
 ```
 
-Response:
-```json
-{"id":"aB3xQ9Kd1mZp","title":"Judul rahasia","content":"Rahasia banget"}
-```
-
-### Update note (hanya pemilik)
+### Update note (hanya pemilik, verified)
 
 ```bash
 curl -X PUT localhost:8080/api/notes/aB3xQ9Kd1mZp \
@@ -308,11 +305,7 @@ curl -X PUT localhost:8080/api/notes/aB3xQ9Kd1mZp \
   -d '{"title":"Judul baru","content":"Isi baru","password":"secret123"}'
 ```
 
-(`password` diabaikan untuk note mode public.)
-
-Hanya pemilik note (userID dari access token cocok dengan `notes.user_id`) yang boleh update.
-
-### Delete note (hanya pemilik)
+### Delete note (hanya pemilik, verified)
 
 ```bash
 curl -X DELETE localhost:8080/api/notes/aB3xQ9Kd1mZp \
@@ -321,19 +314,34 @@ curl -X DELETE localhost:8080/api/notes/aB3xQ9Kd1mZp \
   -d '{"password":"secret123"}'
 ```
 
-Hanya pemilik note yang boleh delete.
+## Environment Variables
+
+Lihat `.env.example` untuk daftar lengkap.
+
+| Variable | Wajib | Keterangan |
+|---|---|---|
+| `DATABASE_URL` | ✅ | Connection string Neon |
+| `JWT_SECRET` | ✅ | Secret key JWT (min 32 karakter) |
+| `RESEND_API_KEY` | ✅ | API key dari Resend.com |
+| `GOOGLE_CLIENT_ID` | ✅ (untuk Google OAuth) | Dari Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | ✅ (untuk Google OAuth) | Dari Google Cloud Console |
+| `PORT` | ❌ | Default `8080` |
+| `FROM_EMAIL` | ❌ | Default `onboarding@resend.dev` |
+| `BASE_URL` | ❌ | Default `http://localhost:{PORT}` |
+| `APP_ENV` | ❌ | Isi `production` untuk JSON logging & cookie secure |
 
 ## Catatan desain & keamanan
 
-- **Verifikasi password note private** dilakukan dengan mencoba dekripsi konten yang tersimpan pakai AES-GCM. Kalau password salah, authentication tag gagal → dianggap password salah. Ini menyederhanakan skema (tidak perlu kolom `password_hash` terpisah) sekaligus memastikan password verifikasi = password dekripsi.
-- **Salt & key derivation (private note)**: tiap note private punya salt unik (16 byte random), key diturunkan pakai Argon2id sebelum dipakai AES-256-GCM. Salt disimpan plaintext di DB (begitulah cara kerja Argon2 — salt tidak perlu dirahasiakan).
-- **Dua algoritma hash berbeda**: bcrypt untuk hash password login (karena low-entropy), SHA-256 untuk hash refresh token (karena token sudah random 256-bit), Argon2id untuk derive key enkripsi note (karena butuh KDF).
-- **ID/slug link** memakai 12 karakter acak dari `crypto/rand` (bukan `math/rand`) supaya tidak mudah ditebak — penting untuk share link publik.
-- **Rate limiting**: endpoint auth dilindungi rate limiter (10 request/menit per IP) untuk menghambat brute force.
-- **Session cleanup**: session expired/revoked secara otomatis dihapus dari database setiap jam oleh background goroutine.
-- **Structured logging**: menggunakan `slog` (standard library sejak Go 1.21). JSON logging otomatis diaktifkan saat `APP_ENV=production`.
-- **Graceful shutdown**: server menerima SIGINT/SIGTERM, menunggu request selesai dalam batas waktu 10 detik (via `http.Server.Shutdown()`), lalu berhenti.
-- **Refresh token via HttpOnly cookie**: untuk client web, refresh token tidak bisa diakses JavaScript sehingga aman dari XSS. Untuk mobile, ada endpoint terpisah (body-based).
-- **CORS** — di development pakai `*`. Di production hanya allowlist tertentu (`Access-Control-Allow-Credentials: true` aktif).
-- **404 handler**: route yang tidak dikenal mengembalikan JSON `{"error":"Not found"}`, bukan serve index.html.
-- **Ini MVP/prototype**: belum ada TTL/auto-expire note. Untuk production, tambahkan itu.
+- **Verifikasi password note private** dilakukan dengan mencoba dekripsi konten pakai AES-GCM. Kalau password salah, authentication tag gagal → dianggap password salah.
+- **Salt & key derivation (private note)**: tiap note private punya salt unik (16 byte), key diturunkan pakai Argon2id.
+- **Tiga algoritma hash berbeda**: bcrypt (password login), SHA-256 (refresh & verification token), Argon2id (enkripsi note).
+- **Email verification**: user baru harus verifikasi email sebelum bisa mengelola note. Unverified users otomatis dihapus setelah 2 hari.
+- **Google OAuth merge**: pengguna Google bisa tambah password via link email (membuktikan kepemilikan inbox). Reverse-nya (pengguna password tautkan Google ID) langsung aman karena Google sudah buktikan email.
+- **Rate limiting**: endpoint auth dilindungi rate limiter (10 req/menit per IP).
+- **Background cleaners**: session expired/revoked, unverified users, dan pending password merge dibersihkan periodik oleh goroutine latar.
+- **Structured logging**: `slog` (JSON di production, text di development).
+- **Graceful shutdown**: server menunggu request selesai (timeout 10 detik) sebelum berhenti.
+- **Refresh token via HttpOnly cookie**: aman dari XSS untuk client web. Mobile pakai endpoint body-based.
+- **CORS**: development allow all origins; production allowlist terbatas dengan credentials.
+- **404 handler**: return JSON, bukan serve index.html.
+- **Ini MVP/prototype**: belum ada TTL/auto-expire note.

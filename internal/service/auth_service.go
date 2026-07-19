@@ -23,6 +23,8 @@ var (
 	ErrSessionInvalid    = errors.New("session tidak valid, silakan login ulang")
 	ErrTokenInvalid      = errors.New("token verifikasi tidak valid atau sudah expired")
 	ErrEmailNotVerified  = errors.New("email belum diverifikasi")
+	ErrGoogleOnlyAccount = errors.New("akun ini terdaftar via Google, silakan login dengan Google")
+	ErrMergePending      = errors.New("email sudah terdaftar via Google, cek email untuk verifikasi penautan password")
 )
 
 const verificationTokenTTL = 24 * time.Hour
@@ -43,10 +45,27 @@ func NewAuthService(q *sqlc.Queries, jwtManager *authutil.JWTManager, refreshTTL
 	return &AuthService{q: q, jwtManager: jwtManager, refreshTTL: refreshTTL, mailer: mailer}
 }
 
-// Register membuat user baru lalu langsung mengembalikan token pair (auto-login).
 func (s *AuthService) Register(ctx context.Context, email, password, userAgent string) (TokenPair, error) {
 	if ctx.Err() != nil {
 		return TokenPair{}, ctx.Err()
+	}
+
+	existing, err := s.q.GetUserByEmail(ctx, email)
+	if err == nil {
+		// Email sudah ada.
+		if existing.GoogleID.Valid && existing.PasswordHash == "" {
+			// Akun Google-only. JANGAN buat user baru, JANGAN langsung merge.
+			// Simpan password sebagai pending + kirim link verifikasi ke email
+			// tersebut. Password baru aktif setelah link diklik — ini membuktikan
+			// yang register memang menguasai inbox email itu, bukan cuma tebak email.
+			if mergeErr := s.startPasswordMerge(ctx, existing, password); mergeErr != nil {
+				return TokenPair{}, mergeErr
+			}
+			return TokenPair{}, ErrMergePending
+		}
+		return TokenPair{}, ErrEmailTaken
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return TokenPair{}, err
 	}
 
 	hash, err := authutil.HashPassword(password)
@@ -66,14 +85,12 @@ func (s *AuthService) Register(ctx context.Context, email, password, userAgent s
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" { // unique_violation (email)
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return TokenPair{}, ErrEmailTaken
 		}
 		return TokenPair{}, err
 	}
 
-	// Generate & simpan token verifikasi, lalu kirim email (best-effort —
-	// kalau gagal kirim, user tetap bisa minta resend nanti; register tidak dibatalkan).
 	token, err := authutil.GenerateVerificationToken()
 	if err == nil {
 		_ = s.q.SetVerificationToken(ctx, sqlc.SetVerificationTokenParams{
@@ -82,12 +99,62 @@ func (s *AuthService) Register(ctx context.Context, email, password, userAgent s
 			VerificationExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(verificationTokenTTL), Valid: true},
 		})
 		go func() {
-			// Kirim di background supaya response register tidak nunggu Resend.
 			_ = s.mailer.SendVerificationEmail(context.Background(), email, token)
 		}()
 	}
 
 	return s.issueTokenPair(ctx, id, userAgent)
+}
+
+// startPasswordMerge menyimpan password baru sebagai "pending" pada akun
+// Google-only yang emailnya sama, lalu kirim email verifikasi penautan.
+func (s *AuthService) startPasswordMerge(ctx context.Context, u sqlc.User, password string) error {
+	hash, err := authutil.HashPassword(password)
+	if err != nil {
+		return err
+	}
+
+	token, err := authutil.GenerateVerificationToken()
+	if err != nil {
+		return err
+	}
+
+	if err := s.q.SetPendingPassword(ctx, sqlc.SetPendingPasswordParams{
+		ID:                       u.ID,
+		PendingPasswordHash:      pgtype.Text{String: hash, Valid: true},
+		PendingPasswordTokenHash: pgtype.Text{String: authutil.HashVerificationToken(token), Valid: true},
+		PendingPasswordExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(verificationTokenTTL), Valid: true},
+	}); err != nil {
+		return err
+	}
+
+	go func() {
+		_ = s.mailer.SendMergePasswordEmail(context.Background(), u.Email, token)
+	}()
+	return nil
+}
+
+// VerifyMergePassword dipanggil saat user klik link di email merge.
+// Kalau token valid & belum expired, password pending dipindah jadi aktif.
+func (s *AuthService) VerifyMergePassword(ctx context.Context, token string) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
+	hash := authutil.HashVerificationToken(token)
+	u, err := s.q.GetUserByPendingPasswordTokenHash(ctx, pgtype.Text{String: hash, Valid: true})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrTokenInvalid
+		}
+		return err
+	}
+
+	if !u.PendingPasswordExpiresAt.Valid || time.Now().After(u.PendingPasswordExpiresAt.Time) {
+		return ErrTokenInvalid
+	}
+
+	return s.q.MergePendingPassword(ctx, u.ID)
 }
 
 // Login memverifikasi email+password lalu mengembalikan token pair baru.
@@ -104,11 +171,79 @@ func (s *AuthService) Login(ctx context.Context, email, password, userAgent stri
 		return TokenPair{}, err
 	}
 
+	if u.PasswordHash == "" {
+		// Akun murni Google, belum ada password yang berhasil di-merge.
+		return TokenPair{}, ErrGoogleOnlyAccount
+	}
+
 	if !authutil.VerifyPassword(u.PasswordHash, password) {
 		return TokenPair{}, ErrInvalidCredential
 	}
 
 	return s.issueTokenPair(ctx, u.ID, userAgent)
+}
+
+// GoogleLogin menangani login/register via Google OAuth.
+//
+// Prioritas pencarian:
+//  1. google_id cocok → langsung login (device Google yang sama pernah dipakai).
+//  2. email cocok tapi belum ada google_id (akun password biasa) → tautkan
+//     google_id ke akun itu SEKARANG JUGA. Ini aman (beda dengan arah
+//     sebaliknya) karena Google sendiri sudah membuktikan kepemilikan email.
+//  3. belum ada sama sekali → buat user baru, email_verified=true.
+func (s *AuthService) GoogleLogin(ctx context.Context, googleID, email string, userAgent string) (TokenPair, error) {
+	if ctx.Err() != nil {
+		return TokenPair{}, ctx.Err()
+	}
+
+	u, err := s.q.GetUserByGoogleID(ctx, pgtype.Text{String: googleID, Valid: true})
+	if err == nil {
+		return s.issueTokenPair(ctx, u.ID, userAgent)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return TokenPair{}, err
+	}
+
+	existing, err := s.q.GetUserByEmail(ctx, email)
+	if err == nil {
+		if linkErr := s.q.LinkGoogleID(ctx, sqlc.LinkGoogleIDParams{
+			ID:       existing.ID,
+			GoogleID: pgtype.Text{String: googleID, Valid: true},
+		}); linkErr != nil {
+			return TokenPair{}, linkErr
+		}
+		if !existing.EmailVerified {
+			_ = s.q.MarkEmailVerified(ctx, existing.ID)
+		}
+		return s.issueTokenPair(ctx, existing.ID, userAgent)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return TokenPair{}, err
+	}
+
+	id, err := idgen.New()
+	if err != nil {
+		return TokenPair{}, err
+	}
+
+	if _, err := s.q.CreateGoogleUser(ctx, sqlc.CreateGoogleUserParams{
+		ID:       id,
+		Email:    email,
+		GoogleID: pgtype.Text{String: googleID, Valid: true},
+	}); err != nil {
+		return TokenPair{}, err
+	}
+
+	return s.issueTokenPair(ctx, id, userAgent)
+}
+
+// Logout me-revoke satu session berdasarkan refresh token yang dikirim client.
+// Device lain yang masih login tidak terpengaruh (logout per-device).
+func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return s.q.RevokeSessionByTokenHash(ctx, authutil.HashRefreshToken(refreshToken))
 }
 
 // Refresh menukar refresh token lama dengan token pair baru.
@@ -137,15 +272,6 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken, userAgent strin
 	}
 
 	return s.issueTokenPair(ctx, sess.UserID, userAgent)
-}
-
-// Logout me-revoke satu session berdasarkan refresh token yang dikirim client.
-// Device lain yang masih login tidak terpengaruh (logout per-device).
-func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
-	return s.q.RevokeSessionByTokenHash(ctx, authutil.HashRefreshToken(refreshToken))
 }
 
 // VerifyEmail mencocokkan token dari link email, menandai user sebagai verified

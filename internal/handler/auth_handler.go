@@ -8,7 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"notepad-sharelink/internal/authutil"
 	"notepad-sharelink/internal/middleware"
+	"notepad-sharelink/internal/oauthutil"
 	"notepad-sharelink/internal/service"
 )
 
@@ -20,13 +22,15 @@ const (
 // AuthHandler menampung dependency yang dibutuhkan handler auth.
 type AuthHandler struct {
 	svc          *service.AuthService
-	cookieSecure bool // true di production (HTTPS), false di development (HTTP)
+	cookieSecure bool
+	googleCfg    *oauthutil.GoogleConfig
 }
 
 // NewAuthHandler membuat AuthHandler baru.
 // cookieSecure harus true di production (HTTPS) dan false di development (HTTP lokal).
-func NewAuthHandler(svc *service.AuthService, cookieSecure bool) *AuthHandler {
-	return &AuthHandler{svc: svc, cookieSecure: cookieSecure}
+
+func NewAuthHandler(svc *service.AuthService, cookieSecure bool, googleCfg *oauthutil.GoogleConfig) *AuthHandler {
+	return &AuthHandler{svc: svc, cookieSecure: cookieSecure, googleCfg: googleCfg}
 }
 
 type registerRequest struct {
@@ -52,6 +56,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	tokens, err := h.svc.Register(c.Request.Context(), req.Email, req.Password, c.Request.UserAgent())
 	if err != nil {
+		if errors.Is(err, service.ErrMergePending) {
+			c.JSON(http.StatusAccepted, gin.H{
+				"message": "Email ini sudah terdaftar lewat Google. Kami kirim link ke email kamu — klik link itu untuk mengaktifkan login pakai password.",
+			})
+			return
+		}
 		respondAuthError(c, err)
 		return
 	}
@@ -82,6 +92,99 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	h.setRefreshTokenCookie(c, tokens.RefreshToken)
 	c.JSON(http.StatusOK, accessTokenResponse{AccessToken: tokens.AccessToken})
+}
+
+const googleStateCookie = "google_oauth_state"
+
+// GoogleLoginRedirect menangani GET /api/auth/google/login — redirect browser
+// ke halaman consent Google. State disimpan di cookie short-lived untuk CSRF check.
+func (h *AuthHandler) GoogleLoginRedirect(c *gin.Context) {
+	if !h.googleCfg.Enabled() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "login Google belum dikonfigurasi"})
+		return
+	}
+
+	state, err := authutil.GenerateVerificationToken() // reuse: cukup random hex
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(googleStateCookie, state, 600, "/api/auth/google", "", h.cookieSecure, true)
+	c.Redirect(http.StatusFound, h.googleCfg.AuthURL(state))
+}
+
+// GoogleCallback menangani GET /api/auth/google/callback.
+// Setelah sukses, refresh token di-set di cookie (sama seperti login biasa)
+// lalu browser di-redirect ke frontend. Access token TIDAK dikirim lewat URL
+// (supaya tidak nyangkut di history/log) — frontend tinggal panggil
+// POST /api/auth/refresh (cookie-based) begitu landing di halaman tujuan.
+func (h *AuthHandler) GoogleCallback(c *gin.Context) {
+	if !h.googleCfg.Enabled() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "login Google belum dikonfigurasi"})
+		return
+	}
+
+	state := c.Query("state")
+	cookieState, err := c.Cookie(googleStateCookie)
+	c.SetCookie(googleStateCookie, "", -1, "/api/auth/google", "", h.cookieSecure, true)
+	if err != nil || state == "" || state != cookieState {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "state tidak valid, kemungkinan CSRF atau session lama"})
+		return
+	}
+
+	code := c.Query("code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "code tidak ditemukan dari Google"})
+		return
+	}
+
+	tok, err := h.googleCfg.ExchangeCode(c.Request.Context(), code)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "gagal menukar code ke Google"})
+		return
+	}
+
+	info, err := h.googleCfg.GetUserInfo(c.Request.Context(), tok.AccessToken)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "gagal mengambil info user dari Google"})
+		return
+	}
+	if !info.EmailVerified {
+		c.JSON(http.StatusForbidden, gin.H{"error": "email Google kamu belum terverifikasi"})
+		return
+	}
+
+	tokens, err := h.svc.GoogleLogin(c.Request.Context(), info.Sub, info.Email, c.Request.UserAgent())
+	if err != nil {
+		respondAuthError(c, err)
+		return
+	}
+
+	h.setRefreshTokenCookie(c, tokens.RefreshToken)
+	c.Redirect(http.StatusFound, h.googleCfg.FrontendRedirectURL)
+}
+
+// VerifyMergePassword menangani GET /api/auth/verify-merge-password?token=xxx.
+// Endpoint PUBLIK — user klik link dari email merge, tidak perlu login.
+func (h *AuthHandler) VerifyMergePassword(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "token wajib diisi"})
+		return
+	}
+
+	if err := h.svc.VerifyMergePassword(c.Request.Context(), token); err != nil {
+		if errors.Is(err, service.ErrTokenInvalid) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "token tidak valid atau sudah expired"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password berhasil ditautkan. Sekarang kamu bisa login pakai email+password atau tetap pakai Google."})
 }
 
 // Refresh menangani POST /api/auth/refresh.
@@ -161,11 +264,11 @@ func respondAuthError(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrEmailTaken):
 		c.JSON(http.StatusConflict, gin.H{"error": "email sudah terdaftar"})
 	case errors.Is(err, service.ErrInvalidCredential):
-		// Sengaja tidak bilang "email tidak ada" atau "password salah" secara spesifik
-		// agar attacker tidak bisa enumerate email yang terdaftar
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "email atau password salah"})
 	case errors.Is(err, service.ErrSessionInvalid):
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "session tidak valid, silakan login ulang"})
+	case errors.Is(err, service.ErrGoogleOnlyAccount):
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "akun ini terdaftar via Google, silakan login dengan tombol \"Login dengan Google\""})
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}

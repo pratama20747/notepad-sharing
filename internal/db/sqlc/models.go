@@ -43,5 +43,12 @@ type User struct {
 	EmailVerified         bool               `json:"email_verified"`
 	VerificationTokenHash pgtype.Text        `json:"verification_token_hash"`
 	VerificationExpiresAt pgtype.Timestamptz `json:"verification_expires_at"`
-	CreatedAt             time.Time          `json:"created_at"`
+	// Sub ID dari Google OAuth, NULL kalau user belum pernah login via Google
+	GoogleID pgtype.Text `json:"google_id"`
+	// Bcrypt hash password yang MENUNGGU verifikasi email sebelum di-merge ke akun Google yang sudah ada
+	PendingPasswordHash pgtype.Text `json:"pending_password_hash"`
+	// SHA-256 dari token merge yang dikirim ke email
+	PendingPasswordTokenHash pgtype.Text        `json:"pending_password_token_hash"`
+	PendingPasswordExpiresAt pgtype.Timestamptz `json:"pending_password_expires_at"`
+	CreatedAt                time.Time          `json:"created_at"`
 }

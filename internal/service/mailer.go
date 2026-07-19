@@ -69,3 +69,49 @@ func (m *Mailer) SendVerificationEmail(ctx context.Context, toEmail, token strin
 	}
 	return nil
 }
+
+// SendMergePasswordEmail mengirim link untuk menautkan password baru ke
+// akun Google yang sudah ada dengan email yang sama.
+func (m *Mailer) SendMergePasswordEmail(ctx context.Context, toEmail, token string) error {
+	verifyURL := fmt.Sprintf("%s/api/auth/verify-merge-password?token=%s", m.baseURL, token)
+
+	html := fmt.Sprintf(`
+		<h2>Tautkan password ke akun kamu</h2>
+		<p>Email ini sudah terdaftar lewat Google. Kalau kamu yang minta untuk
+		bisa login pakai email+password juga, klik link di bawah untuk
+		mengaktifkannya:</p>
+		<p><a href="%s">Tautkan Password</a></p>
+		<p>Link ini berlaku 24 jam. Kalau bukan kamu, abaikan email ini —
+		akun kamu tetap aman dan hanya bisa diakses lewat Google.</p>
+	`, verifyURL)
+
+	payload := resendEmailPayload{
+		From:    m.fromEmail,
+		To:      []string{toEmail},
+		Subject: "Tautkan password ke akun Google kamu — Notepad Sharelink",
+		Html:    html,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.resend.com/emails", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+m.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("resend: gagal kirim email merge, status %d", resp.StatusCode)
+	}
+	return nil
+}

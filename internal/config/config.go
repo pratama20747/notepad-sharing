@@ -21,9 +21,13 @@ type Config struct {
 	// - Log format (JSON di production, text di development)
 	IsProd bool
 	// Resend API untuk email verifikasi
-	ResendAPIKey string
-	FromEmail    string
-	BaseURL      string
+	ResendAPIKey              string
+	FromEmail                 string
+	BaseURL                   string
+	GoogleClientID            string
+	GoogleClientSecret        string
+	GoogleRedirectURL         string
+	GoogleFrontendRedirectURL string
 }
 
 // Load membaca file .env (jika ada) lalu memvalidasi environment variable wajib.
@@ -64,16 +68,29 @@ func Load() (*Config, error) {
 	if baseURL == "" {
 		baseURL = "http://localhost:" + port
 	}
-
+	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
+	googleClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	googleRedirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
+	if googleRedirectURL == "" {
+		googleRedirectURL = baseURL + "/api/auth/google/callback"
+	}
+	googleFrontendRedirectURL := os.Getenv("GOOGLE_FRONTEND_REDIRECT_URL")
+	if googleFrontendRedirectURL == "" {
+		googleFrontendRedirectURL = baseURL
+	}
 	return &Config{
-		DatabaseURL:     dbURL,
-		Port:            port,
-		JWTSecret:       jwtSecret,
-		AccessTokenTTL:  15 * time.Minute,
-		RefreshTokenTTL: 30 * 24 * time.Hour,
-		IsProd:          isProd,
-		ResendAPIKey:    resendAPIKey,
-		FromEmail:       fromEmail,
-		BaseURL:         baseURL,
+		DatabaseURL:               dbURL,
+		Port:                      port,
+		JWTSecret:                 jwtSecret,
+		AccessTokenTTL:            15 * time.Minute,
+		RefreshTokenTTL:           30 * 24 * time.Hour,
+		IsProd:                    isProd,
+		ResendAPIKey:              resendAPIKey,
+		FromEmail:                 fromEmail,
+		BaseURL:                   baseURL,
+		GoogleClientID:            googleClientID,
+		GoogleClientSecret:        googleClientSecret,
+		GoogleRedirectURL:         googleRedirectURL,
+		GoogleFrontendRedirectURL: googleFrontendRedirectURL,
 	}, nil
 }

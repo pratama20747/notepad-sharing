@@ -39,7 +39,9 @@ func New(
 		auth.POST("/login-mobile", authHandler.MobileLoginHandler)
 		auth.POST("/refresh-mobile", authHandler.MobileRefreshHandler)
 		auth.POST("/logout-mobile", authHandler.MobileLogoutHandler)
-
+		auth.GET("/google/login", authHandler.GoogleLoginRedirect)
+		auth.GET("/google/callback", authHandler.GoogleCallback)
+		auth.GET("/verify-merge-password", authHandler.VerifyMergePassword)
 		authedAuth := auth.Group("")
 		authedAuth.Use(middleware.RequireAuth(jwtManager))
 		{

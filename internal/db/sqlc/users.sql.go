@@ -11,10 +11,64 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearExpiredPendingPasswords = `-- name: ClearExpiredPendingPasswords :execrows
+UPDATE users
+SET pending_password_hash = NULL,
+    pending_password_token_hash = NULL,
+    pending_password_expires_at = NULL
+WHERE pending_password_token_hash IS NOT NULL
+  AND pending_password_expires_at < now()
+`
+
+// Bersihkan pending_password_* pada akun Google-only yang link merge-nya
+// tidak pernah diklik sampai expired. User & google_id TIDAK dihapus —
+// cuma percobaan merge password yang basi ini yang dibuang, supaya
+// attempt merge berikutnya (attempt baru) bisa mulai bersih.
+func (q *Queries) ClearExpiredPendingPasswords(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearExpiredPendingPasswords)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const createGoogleUser = `-- name: CreateGoogleUser :one
+INSERT INTO users (id, email, password_hash, google_id, email_verified)
+VALUES ($1, $2, '', $3, true)
+RETURNING id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at
+`
+
+type CreateGoogleUserParams struct {
+	ID       string      `json:"id"`
+	Email    string      `json:"email"`
+	GoogleID pgtype.Text `json:"google_id"`
+}
+
+// User baru yang daftar lewat Google. password_hash sengaja kosong,
+// email_verified langsung true karena Google sudah verifikasi email-nya.
+func (q *Queries) CreateGoogleUser(ctx context.Context, arg CreateGoogleUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createGoogleUser, arg.ID, arg.Email, arg.GoogleID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.EmailVerified,
+		&i.VerificationTokenHash,
+		&i.VerificationExpiresAt,
+		&i.GoogleID,
+		&i.PendingPasswordHash,
+		&i.PendingPasswordTokenHash,
+		&i.PendingPasswordExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, email, password_hash)
 VALUES ($1, $2, $3)
-RETURNING id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, created_at
+RETURNING id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at
 `
 
 type CreateUserParams struct {
@@ -33,6 +87,10 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.EmailVerified,
 		&i.VerificationTokenHash,
 		&i.VerificationExpiresAt,
+		&i.GoogleID,
+		&i.PendingPasswordHash,
+		&i.PendingPasswordTokenHash,
+		&i.PendingPasswordExpiresAt,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -55,7 +113,7 @@ func (q *Queries) DeleteUnverifiedUsers(ctx context.Context) (int64, error) {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, created_at FROM users WHERE email = $1
+SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -68,13 +126,40 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.EmailVerified,
 		&i.VerificationTokenHash,
 		&i.VerificationExpiresAt,
+		&i.GoogleID,
+		&i.PendingPasswordHash,
+		&i.PendingPasswordTokenHash,
+		&i.PendingPasswordExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByGoogleID = `-- name: GetUserByGoogleID :one
+SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE google_id = $1
+`
+
+func (q *Queries) GetUserByGoogleID(ctx context.Context, googleID pgtype.Text) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByGoogleID, googleID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.EmailVerified,
+		&i.VerificationTokenHash,
+		&i.VerificationExpiresAt,
+		&i.GoogleID,
+		&i.PendingPasswordHash,
+		&i.PendingPasswordTokenHash,
+		&i.PendingPasswordExpiresAt,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, created_at FROM users WHERE id = $1
+SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
@@ -87,13 +172,40 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.EmailVerified,
 		&i.VerificationTokenHash,
 		&i.VerificationExpiresAt,
+		&i.GoogleID,
+		&i.PendingPasswordHash,
+		&i.PendingPasswordTokenHash,
+		&i.PendingPasswordExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByPendingPasswordTokenHash = `-- name: GetUserByPendingPasswordTokenHash :one
+SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE pending_password_token_hash = $1
+`
+
+func (q *Queries) GetUserByPendingPasswordTokenHash(ctx context.Context, pendingPasswordTokenHash pgtype.Text) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByPendingPasswordTokenHash, pendingPasswordTokenHash)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.EmailVerified,
+		&i.VerificationTokenHash,
+		&i.VerificationExpiresAt,
+		&i.GoogleID,
+		&i.PendingPasswordHash,
+		&i.PendingPasswordTokenHash,
+		&i.PendingPasswordExpiresAt,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByVerificationTokenHash = `-- name: GetUserByVerificationTokenHash :one
-SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, created_at FROM users WHERE verification_token_hash = $1
+SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE verification_token_hash = $1
 `
 
 func (q *Queries) GetUserByVerificationTokenHash(ctx context.Context, verificationTokenHash pgtype.Text) (User, error) {
@@ -106,9 +218,30 @@ func (q *Queries) GetUserByVerificationTokenHash(ctx context.Context, verificati
 		&i.EmailVerified,
 		&i.VerificationTokenHash,
 		&i.VerificationExpiresAt,
+		&i.GoogleID,
+		&i.PendingPasswordHash,
+		&i.PendingPasswordTokenHash,
+		&i.PendingPasswordExpiresAt,
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const linkGoogleID = `-- name: LinkGoogleID :exec
+UPDATE users SET google_id = $2 WHERE id = $1
+`
+
+type LinkGoogleIDParams struct {
+	ID       string      `json:"id"`
+	GoogleID pgtype.Text `json:"google_id"`
+}
+
+// Dipakai saat user login Google dengan email yang SUDAH punya akun password.
+// Aman langsung link (tanpa nunggu verifikasi) karena email di sini
+// sudah dibuktikan kepemilikannya oleh Google sendiri.
+func (q *Queries) LinkGoogleID(ctx context.Context, arg LinkGoogleIDParams) error {
+	_, err := q.db.Exec(ctx, linkGoogleID, arg.ID, arg.GoogleID)
+	return err
 }
 
 const markEmailVerified = `-- name: MarkEmailVerified :exec
@@ -119,6 +252,48 @@ WHERE id = $1
 
 func (q *Queries) MarkEmailVerified(ctx context.Context, id string) error {
 	_, err := q.db.Exec(ctx, markEmailVerified, id)
+	return err
+}
+
+const mergePendingPassword = `-- name: MergePendingPassword :exec
+UPDATE users
+SET password_hash = pending_password_hash,
+    pending_password_hash = NULL,
+    pending_password_token_hash = NULL,
+    pending_password_expires_at = NULL
+WHERE id = $1
+`
+
+// Dipanggil setelah token merge terverifikasi: password pending dipindah
+// jadi password_hash aktif, field pending dibersihkan.
+func (q *Queries) MergePendingPassword(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, mergePendingPassword, id)
+	return err
+}
+
+const setPendingPassword = `-- name: SetPendingPassword :exec
+UPDATE users
+SET pending_password_hash = $2, pending_password_token_hash = $3, pending_password_expires_at = $4
+WHERE id = $1
+`
+
+type SetPendingPasswordParams struct {
+	ID                       string             `json:"id"`
+	PendingPasswordHash      pgtype.Text        `json:"pending_password_hash"`
+	PendingPasswordTokenHash pgtype.Text        `json:"pending_password_token_hash"`
+	PendingPasswordExpiresAt pgtype.Timestamptz `json:"pending_password_expires_at"`
+}
+
+// Simpan password "menunggu" ketika ada yang register pakai email yang
+// sudah terdaftar sebagai akun Google-only. Password baru aktif setelah
+// link verifikasi di-klik (lihat MergePendingPassword).
+func (q *Queries) SetPendingPassword(ctx context.Context, arg SetPendingPasswordParams) error {
+	_, err := q.db.Exec(ctx, setPendingPassword,
+		arg.ID,
+		arg.PendingPasswordHash,
+		arg.PendingPasswordTokenHash,
+		arg.PendingPasswordExpiresAt,
+	)
 	return err
 }
 
