@@ -20,16 +20,16 @@ Fitur tambahan:
 - [Neon](https://neon.tech) — Postgres serverless
 - `golang.org/x/crypto` — bcrypt (hash password), argon2 (derive key enkripsi private note)
 - `github.com/golang-jwt/jwt/v5` — JWT access token
-- `crypto/aes` (GCM) — enkripsi mode private
+- `crypto/aes` (GCM) — enkripsi mode private (standard library)
+- `crypto/rand` — generate ID & token (standard library)
 - [Resend](https://resend.com) — kirim email verifikasi & merge password
+- `github.com/ulule/limiter/v3` — rate limiting middleware
 
 ## Struktur folder
 
 ```
 notepad-sharelink/
 ├── cmd/server/main.go          # entry point
-├── frontend/
-│   └── index.html               # SPA frontend (disajikan via backend)
 ├── internal/
 │   ├── authutil/                # JWT manager, hash password (bcrypt), refresh token, verification token
 │   ├── config/                  # load env var
@@ -46,15 +46,31 @@ notepad-sharelink/
 │   └── router/                  # route registration
 ├── sqlc.yaml
 ├── go.mod
+├── go.sum
+├── docker-compose.yaml
 └── .env.example
 ```
 
 ## Cara menjalankan
 
-### 1. Siapkan database Neon
+### 1. Siapkan database
+
+**Opsi A: Neon (Serverless Postgres)**
 
 1. Buat project di [neon.tech](https://neon.tech), catat connection string-nya.
 2. Jalankan isi `internal/db/migrations/001_create_notes.sql` ke database.
+
+**Opsi B: Docker (Lokal)**
+
+```bash
+docker-compose up -d
+```
+
+Lalu jalankan migrasi:
+
+```bash
+psql postgres://myuser:mypassword@localhost:5432/mydatabase -f internal/db/migrations/001_create_notes.sql
+```
 
 ### 2. Install sqlc & generate kode
 
@@ -320,11 +336,11 @@ Lihat `.env.example` untuk daftar lengkap.
 
 | Variable | Wajib | Keterangan |
 |---|---|---|
-| `DATABASE_URL` | ✅ | Connection string Neon |
+| `DATABASE_URL` | ✅ | Connection string Neon atau PostgreSQL |
 | `JWT_SECRET` | ✅ | Secret key JWT (min 32 karakter) |
 | `RESEND_API_KEY` | ✅ | API key dari Resend.com |
-| `GOOGLE_CLIENT_ID` | ✅ (untuk Google OAuth) | Dari Google Cloud Console |
-| `GOOGLE_CLIENT_SECRET` | ✅ (untuk Google OAuth) | Dari Google Cloud Console |
+| `GOOGLE_CLIENT_ID` | ❌ (untuk Google OAuth) | Dari Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | ❌ (untuk Google OAuth) | Dari Google Cloud Console |
 | `PORT` | ❌ | Default `8080` |
 | `FROM_EMAIL` | ❌ | Default `onboarding@resend.dev` |
 | `BASE_URL` | ❌ | Default `http://localhost:{PORT}` |
@@ -339,9 +355,120 @@ Lihat `.env.example` untuk daftar lengkap.
 - **Google OAuth merge**: pengguna Google bisa tambah password via link email (membuktikan kepemilikan inbox). Reverse-nya (pengguna password tautkan Google ID) langsung aman karena Google sudah buktikan email.
 - **Rate limiting**: endpoint auth dilindungi rate limiter (10 req/menit per IP).
 - **Background cleaners**: session expired/revoked, unverified users, dan pending password merge dibersihkan periodik oleh goroutine latar.
-- **Structured logging**: `slog` (JSON di production, text di development).
+- **Structured logging**: `log/slog` (JSON di production, text di development).
 - **Graceful shutdown**: server menunggu request selesai (timeout 10 detik) sebelum berhenti.
 - **Refresh token via HttpOnly cookie**: aman dari XSS untuk client web. Mobile pakai endpoint body-based.
 - **CORS**: development allow all origins; production allowlist terbatas dengan credentials.
 - **404 handler**: return JSON, bukan serve index.html.
 - **Ini MVP/prototype**: belum ada TTL/auto-expire note.
+```
+
+## 3. **Docker Compose - Tambahkan Volume untuk Init**
+
+```yaml
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16.3-alpine
+    container_name: postgres_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydatabase
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - postgres_backup:/backup
+      # Auto-run migration saat container pertama kali dibuat
+      - ./internal/db/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d mydatabase"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_backup:
+    driver: local
+```
+
+## 4. **Buat `.env.example` yang Hilang**
+
+Buat file `.env.example`:
+
+```bash
+# Database
+DATABASE_URL=postgres://myuser:mypassword@localhost:5432/mydatabase?sslmode=disable
+
+# JWT
+JWT_SECRET=your-secret-key-at-least-32-characters-long-here
+
+# Server
+PORT=8080
+APP_ENV=development
+
+# Resend (Email)
+RESEND_API_KEY=re_xxxxxxxxxxxx
+FROM_EMAIL=onboarding@resend.dev
+BASE_URL=http://localhost:8080
+
+# Google OAuth (Opsional)
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxxxxxx
+GOOGLE_REDIRECT_URL=http://localhost:8080/api/auth/google/callback
+GOOGLE_FRONTEND_REDIRECT_URL=http://localhost:3000
+```
+
+## 5. **Update `.gitignore`**
+
+Pastikan file `.gitignore` ada:
+
+```gitignore
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+notepad-sharelink
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# Environment variables
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.sqlite
+
+# Docker volumes
+postgres_data/
+postgres_backup/
+```
