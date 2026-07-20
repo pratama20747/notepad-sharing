@@ -95,10 +95,7 @@ func corsMiddleware() gin.HandlerFunc {
 
 		// PRODUCTION: Allowlist
 		allowed := map[string]bool{
-			"https://frontend-domain.com":     true,
-			"https://www.frontend-domain.com": true,
-			"http://localhost:3000":           true,
-			"http://localhost:8080":           true,
+			"https://pratama20747.github.io": true,
 		}
 		if allowed[origin] {
 			c.Header("Access-Control-Allow-Origin", origin)
