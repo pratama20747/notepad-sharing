@@ -9,6 +9,9 @@ SELECT * FROM users WHERE email = $1;
 -- name: GetUserByID :one
 SELECT * FROM users WHERE id = $1;
 
+-- name: SetAvatar :exec
+UPDATE users SET avatar_url = $2, avatar_source = $3 WHERE id = $1;
+
 -- name: SetVerificationToken :exec
 UPDATE users
 SET verification_token_hash = $2, verification_expires_at = $3

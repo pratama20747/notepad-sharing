@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -39,10 +40,11 @@ type AuthService struct {
 	jwtManager *authutil.JWTManager
 	refreshTTL time.Duration
 	mailer     *Mailer
+	avatarSvc  *AvatarService
 }
 
-func NewAuthService(q *sqlc.Queries, jwtManager *authutil.JWTManager, refreshTTL time.Duration, mailer *Mailer) *AuthService {
-	return &AuthService{q: q, jwtManager: jwtManager, refreshTTL: refreshTTL, mailer: mailer}
+func NewAuthService(q *sqlc.Queries, jwtManager *authutil.JWTManager, refreshTTL time.Duration, mailer *Mailer, avatarSvc *AvatarService) *AuthService {
+	return &AuthService{q: q, jwtManager: jwtManager, refreshTTL: refreshTTL, mailer: mailer, avatarSvc: avatarSvc}
 }
 
 func (s *AuthService) Register(ctx context.Context, email, password, userAgent string) (TokenPair, error) {
@@ -191,13 +193,14 @@ func (s *AuthService) Login(ctx context.Context, email, password, userAgent stri
 //     google_id ke akun itu SEKARANG JUGA. Ini aman (beda dengan arah
 //     sebaliknya) karena Google sendiri sudah membuktikan kepemilikan email.
 //  3. belum ada sama sekali → buat user baru, email_verified=true.
-func (s *AuthService) GoogleLogin(ctx context.Context, googleID, email string, userAgent string) (TokenPair, error) {
+func (s *AuthService) GoogleLogin(ctx context.Context, googleID, email, picture string, userAgent string) (TokenPair, error) {
 	if ctx.Err() != nil {
 		return TokenPair{}, ctx.Err()
 	}
 
 	u, err := s.q.GetUserByGoogleID(ctx, pgtype.Text{String: googleID, Valid: true})
 	if err == nil {
+		s.maybeMirrorAvatar(u, picture)
 		return s.issueTokenPair(ctx, u.ID, userAgent)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
@@ -215,6 +218,7 @@ func (s *AuthService) GoogleLogin(ctx context.Context, googleID, email string, u
 		if !existing.EmailVerified {
 			_ = s.q.MarkEmailVerified(ctx, existing.ID)
 		}
+		s.maybeMirrorAvatar(existing, picture)
 		return s.issueTokenPair(ctx, existing.ID, userAgent)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
@@ -234,7 +238,57 @@ func (s *AuthService) GoogleLogin(ctx context.Context, googleID, email string, u
 		return TokenPair{}, err
 	}
 
+	if s.avatarSvc != nil && picture != "" {
+		go func() {
+			bCtx := context.Background()
+			if err := s.avatarSvc.MirrorGoogleAvatar(bCtx, picture, id); err != nil {
+				slog.Warn("gagal mirror avatar google", "error", err, "user_id", id)
+			}
+		}()
+	}
+
 	return s.issueTokenPair(ctx, id, userAgent)
+}
+
+// maybeMirrorAvatar hanya mirror kalau user belum punya avatar sama sekali —
+// supaya tidak menimpa avatar hasil upload manual user setiap kali login Google.
+func (s *AuthService) maybeMirrorAvatar(u sqlc.User, picture string) {
+	if s.avatarSvc == nil || picture == "" || u.AvatarSource == "upload" {
+		return
+	}
+	go func() {
+		bCtx := context.Background()
+		if err := s.avatarSvc.MirrorGoogleAvatar(bCtx, picture, u.ID); err != nil {
+			slog.Warn("gagal mirror avatar google", "error", err, "user_id", u.ID)
+		}
+	}()
+}
+
+// UserProfile digunakan untuk response GET /api/auth/me.
+type UserProfile struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	AvatarURL     string `json:"avatar_url,omitempty"`
+	AvatarSource  string `json:"avatar_source"`
+	HasPassword   bool   `json:"has_password"`
+	HasGoogle     bool   `json:"has_google"`
+}
+
+func (s *AuthService) GetProfile(ctx context.Context, userID string) (UserProfile, error) {
+	u, err := s.q.GetUserByID(ctx, userID)
+	if err != nil {
+		return UserProfile{}, err
+	}
+	return UserProfile{
+		ID:            u.ID,
+		Email:         u.Email,
+		EmailVerified: u.EmailVerified,
+		AvatarURL:     u.AvatarUrl.String,
+		AvatarSource:  u.AvatarSource,
+		HasPassword:   u.PasswordHash != "",
+		HasGoogle:     u.GoogleID.Valid,
+	}, nil
 }
 
 // Logout me-revoke satu session berdasarkan refresh token yang dikirim client.

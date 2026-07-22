@@ -26,6 +26,20 @@ type Note struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type NoteAttachment struct {
+	ID     string `json:"id"`
+	NoteID string `json:"note_id"`
+	// key object di R2. Untuk attachment private, isinya adalah nonce||ciphertext AES-GCM (application/octet-stream)
+	R2Key       string `json:"r2_key"`
+	Url         string `json:"url"`
+	ContentType string `json:"content_type"`
+	FileSize    int64  `json:"file_size"`
+	Kind        string `json:"kind"`
+	// true jika note pemiliknya mode private — content_type & file_size di sini merujuk ke file ASLI (sebelum dienkripsi), bukan blob terenkripsi di R2
+	Encrypted bool      `json:"encrypted"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type Session struct {
 	ID        string             `json:"id"`
 	UserID    string             `json:"user_id"`
@@ -40,6 +54,8 @@ type User struct {
 	ID                    string             `json:"id"`
 	Email                 string             `json:"email"`
 	PasswordHash          string             `json:"password_hash"`
+	AvatarUrl             pgtype.Text        `json:"avatar_url"`
+	AvatarSource          string             `json:"avatar_source"`
 	EmailVerified         bool               `json:"email_verified"`
 	VerificationTokenHash pgtype.Text        `json:"verification_token_hash"`
 	VerificationExpiresAt pgtype.Timestamptz `json:"verification_expires_at"`

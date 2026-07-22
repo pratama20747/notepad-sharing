@@ -87,6 +87,7 @@ type GoogleUserInfo struct {
 	Email         string `json:"email"`
 	EmailVerified bool   `json:"email_verified"`
 	Name          string `json:"name"`
+	Picture       string `json:"picture"`
 }
 
 // GetUserInfo mengambil profil user dari Google pakai access token hasil ExchangeCode.

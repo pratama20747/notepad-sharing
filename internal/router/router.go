@@ -15,6 +15,8 @@ import (
 func New(
 	noteHandler *handler.NoteHandler,
 	authHandler *handler.AuthHandler,
+	avatarHandler *handler.AvatarHandler,
+	attachmentHandler *handler.AttachmentHandler,
 	jwtManager *authutil.JWTManager,
 	queries *sqlc.Queries,
 ) *gin.Engine {
@@ -42,10 +44,12 @@ func New(
 		auth.GET("/google/login", authHandler.GoogleLoginRedirect)
 		auth.GET("/google/callback", authHandler.GoogleCallback)
 		auth.GET("/verify-merge-password", authHandler.VerifyMergePassword)
+
 		authedAuth := auth.Group("")
 		authedAuth.Use(middleware.RequireAuth(jwtManager))
 		{
 			authedAuth.POST("/resend-verification", authHandler.ResendVerification)
+			authedAuth.GET("/me", authHandler.Me)
 		}
 	}
 
@@ -54,6 +58,8 @@ func New(
 	{
 		notes.GET("/:id", noteHandler.Get)
 		notes.POST("/:id/unlock", noteHandler.Unlock)
+		notes.GET("/:id/attachments", attachmentHandler.List)
+		notes.POST("/attachments/:attachmentId/download", attachmentHandler.DownloadPrivate)
 
 		authed := notes.Group("")
 		authed.Use(middleware.RequireAuth(jwtManager))
@@ -63,7 +69,20 @@ func New(
 			authed.POST("", noteHandler.Create)
 			authed.PUT("/:id", noteHandler.Update)
 			authed.DELETE("/:id", noteHandler.Delete)
+
+			authed.POST("/:id/attachments/presign", attachmentHandler.PresignUpload)
+			authed.POST("/:id/attachments/confirm", attachmentHandler.ConfirmUpload)
+			authed.POST("/:id/attachments/private", attachmentHandler.UploadPrivate)
+			authed.DELETE("/attachments/:attachmentId", attachmentHandler.Delete)
 		}
+	}
+
+	// Avatar routes (butuh login, tidak perlu verified)
+	users := r.Group("/api/users")
+	users.Use(middleware.RequireAuth(jwtManager))
+	{
+		users.POST("/avatar/presign", avatarHandler.PresignUpload)
+		users.POST("/avatar/confirm", avatarHandler.ConfirmUpload)
 	}
 
 	r.NoRoute(func(c *gin.Context) {

@@ -21,6 +21,7 @@ import (
 	"notepad-sharelink/internal/oauthutil"
 	"notepad-sharelink/internal/router"
 	"notepad-sharelink/internal/service"
+	"notepad-sharelink/internal/storage"
 )
 
 func main() {
@@ -70,10 +71,30 @@ func main() {
 	}
 
 	noteService := service.NewNoteService(queries)
-	authService := service.NewAuthService(queries, jwtManager, cfg.RefreshTokenTTL, mailer)
+
+	// Inisialisasi R2 dan service dependen (avatar & attachment)
+	var avatarService *service.AvatarService
+	var attachmentService *service.AttachmentService
+	if cfg.R2Enabled() {
+		r2Client, err := storage.NewR2Client(cfg)
+		if err != nil {
+			slog.Error("gagal init R2 client", "error", err)
+			os.Exit(1)
+		}
+		avatarService = service.NewAvatarService(queries, r2Client, cfg.MaxAvatarSize)
+		attachmentService = service.NewAttachmentService(
+			queries, r2Client, cfg.MaxImageAttachSize, cfg.MaxVideoAttachSize, cfg.MaxAttachmentsPerNote,
+		)
+	} else {
+		slog.Warn("R2 belum dikonfigurasi — fitur avatar & attachment dinonaktifkan")
+	}
+
+	authService := service.NewAuthService(queries, jwtManager, cfg.RefreshTokenTTL, mailer, avatarService)
 
 	noteHandler := handler.NewNoteHandler(noteService)
 	authHandler := handler.NewAuthHandler(authService, cfg.IsProd, googleCfg)
+	avatarHandler := handler.NewAvatarHandler(avatarService)
+	attachmentHandler := handler.NewAttachmentHandler(attachmentService, cfg.MaxVideoAttachSize)
 
 	// Jalankan session cleaner di background — cleanup setiap 1 jam
 	cleaner := service.NewSessionCleaner(queries, 1*time.Hour)
@@ -89,7 +110,7 @@ func main() {
 	go pendingPasswordCleaner.Start(ctx)
 
 	// Buat HTTP server dari router
-	r := router.New(noteHandler, authHandler, jwtManager, queries)
+	r := router.New(noteHandler, authHandler, avatarHandler, attachmentHandler, jwtManager, queries)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,

@@ -156,7 +156,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.svc.GoogleLogin(c.Request.Context(), info.Sub, info.Email, c.Request.UserAgent())
+	tokens, err := h.svc.GoogleLogin(c.Request.Context(), info.Sub, info.Email, info.Picture, c.Request.UserAgent())
 	if err != nil {
 		respondAuthError(c, err)
 		return
@@ -368,4 +368,15 @@ func (h *AuthHandler) MobileLoginHandler(c *gin.Context) {
 		"access_token":  tokens.AccessToken,
 		"refresh_token": tokens.RefreshToken,
 	})
+}
+
+// Me menangani GET /api/auth/me. Endpoint BUTUH LOGIN.
+func (h *AuthHandler) Me(c *gin.Context) {
+	userID := middleware.UserID(c)
+	profile, err := h.svc.GetProfile(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	c.JSON(http.StatusOK, profile)
 }

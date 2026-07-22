@@ -35,7 +35,7 @@ func (q *Queries) ClearExpiredPendingPasswords(ctx context.Context) (int64, erro
 const createGoogleUser = `-- name: CreateGoogleUser :one
 INSERT INTO users (id, email, password_hash, google_id, email_verified)
 VALUES ($1, $2, '', $3, true)
-RETURNING id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at
+RETURNING id, email, password_hash, avatar_url, avatar_source, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at
 `
 
 type CreateGoogleUserParams struct {
@@ -53,6 +53,8 @@ func (q *Queries) CreateGoogleUser(ctx context.Context, arg CreateGoogleUserPara
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
+		&i.AvatarUrl,
+		&i.AvatarSource,
 		&i.EmailVerified,
 		&i.VerificationTokenHash,
 		&i.VerificationExpiresAt,
@@ -68,7 +70,7 @@ func (q *Queries) CreateGoogleUser(ctx context.Context, arg CreateGoogleUserPara
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, email, password_hash)
 VALUES ($1, $2, $3)
-RETURNING id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at
+RETURNING id, email, password_hash, avatar_url, avatar_source, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at
 `
 
 type CreateUserParams struct {
@@ -84,6 +86,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
+		&i.AvatarUrl,
+		&i.AvatarSource,
 		&i.EmailVerified,
 		&i.VerificationTokenHash,
 		&i.VerificationExpiresAt,
@@ -113,7 +117,7 @@ func (q *Queries) DeleteUnverifiedUsers(ctx context.Context) (int64, error) {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE email = $1
+SELECT id, email, password_hash, avatar_url, avatar_source, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -123,6 +127,8 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
+		&i.AvatarUrl,
+		&i.AvatarSource,
 		&i.EmailVerified,
 		&i.VerificationTokenHash,
 		&i.VerificationExpiresAt,
@@ -136,7 +142,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByGoogleID = `-- name: GetUserByGoogleID :one
-SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE google_id = $1
+SELECT id, email, password_hash, avatar_url, avatar_source, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE google_id = $1
 `
 
 func (q *Queries) GetUserByGoogleID(ctx context.Context, googleID pgtype.Text) (User, error) {
@@ -146,6 +152,8 @@ func (q *Queries) GetUserByGoogleID(ctx context.Context, googleID pgtype.Text) (
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
+		&i.AvatarUrl,
+		&i.AvatarSource,
 		&i.EmailVerified,
 		&i.VerificationTokenHash,
 		&i.VerificationExpiresAt,
@@ -159,7 +167,7 @@ func (q *Queries) GetUserByGoogleID(ctx context.Context, googleID pgtype.Text) (
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE id = $1
+SELECT id, email, password_hash, avatar_url, avatar_source, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
@@ -169,6 +177,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
+		&i.AvatarUrl,
+		&i.AvatarSource,
 		&i.EmailVerified,
 		&i.VerificationTokenHash,
 		&i.VerificationExpiresAt,
@@ -182,7 +192,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 }
 
 const getUserByPendingPasswordTokenHash = `-- name: GetUserByPendingPasswordTokenHash :one
-SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE pending_password_token_hash = $1
+SELECT id, email, password_hash, avatar_url, avatar_source, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE pending_password_token_hash = $1
 `
 
 func (q *Queries) GetUserByPendingPasswordTokenHash(ctx context.Context, pendingPasswordTokenHash pgtype.Text) (User, error) {
@@ -192,6 +202,8 @@ func (q *Queries) GetUserByPendingPasswordTokenHash(ctx context.Context, pending
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
+		&i.AvatarUrl,
+		&i.AvatarSource,
 		&i.EmailVerified,
 		&i.VerificationTokenHash,
 		&i.VerificationExpiresAt,
@@ -205,7 +217,7 @@ func (q *Queries) GetUserByPendingPasswordTokenHash(ctx context.Context, pending
 }
 
 const getUserByVerificationTokenHash = `-- name: GetUserByVerificationTokenHash :one
-SELECT id, email, password_hash, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE verification_token_hash = $1
+SELECT id, email, password_hash, avatar_url, avatar_source, email_verified, verification_token_hash, verification_expires_at, google_id, pending_password_hash, pending_password_token_hash, pending_password_expires_at, created_at FROM users WHERE verification_token_hash = $1
 `
 
 func (q *Queries) GetUserByVerificationTokenHash(ctx context.Context, verificationTokenHash pgtype.Text) (User, error) {
@@ -215,6 +227,8 @@ func (q *Queries) GetUserByVerificationTokenHash(ctx context.Context, verificati
 		&i.ID,
 		&i.Email,
 		&i.PasswordHash,
+		&i.AvatarUrl,
+		&i.AvatarSource,
 		&i.EmailVerified,
 		&i.VerificationTokenHash,
 		&i.VerificationExpiresAt,
@@ -268,6 +282,21 @@ WHERE id = $1
 // jadi password_hash aktif, field pending dibersihkan.
 func (q *Queries) MergePendingPassword(ctx context.Context, id string) error {
 	_, err := q.db.Exec(ctx, mergePendingPassword, id)
+	return err
+}
+
+const setAvatar = `-- name: SetAvatar :exec
+UPDATE users SET avatar_url = $2, avatar_source = $3 WHERE id = $1
+`
+
+type SetAvatarParams struct {
+	ID           string      `json:"id"`
+	AvatarUrl    pgtype.Text `json:"avatar_url"`
+	AvatarSource string      `json:"avatar_source"`
+}
+
+func (q *Queries) SetAvatar(ctx context.Context, arg SetAvatarParams) error {
+	_, err := q.db.Exec(ctx, setAvatar, arg.ID, arg.AvatarUrl, arg.AvatarSource)
 	return err
 }
 

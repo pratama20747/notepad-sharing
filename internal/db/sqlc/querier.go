@@ -16,13 +16,16 @@ type Querier interface {
 	// cuma percobaan merge password yang basi ini yang dibuang, supaya
 	// attempt merge berikutnya (attempt baru) bisa mulai bersih.
 	ClearExpiredPendingPasswords(ctx context.Context) (int64, error)
+	CountAttachmentsByNote(ctx context.Context, noteID string) (int64, error)
 	CountNotesByUser(ctx context.Context, userID string) (int64, error)
+	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) (NoteAttachment, error)
 	// User baru yang daftar lewat Google. password_hash sengaja kosong,
 	// email_verified langsung true karena Google sudah verifikasi email-nya.
 	CreateGoogleUser(ctx context.Context, arg CreateGoogleUserParams) (User, error)
 	CreateNote(ctx context.Context, arg CreateNoteParams) (Note, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteAttachment(ctx context.Context, id string) (int64, error)
 	// Hapus session yang sudah expired ATAU sudah di-revoke lebih dari 1 hari.
 	// Revoked session diberi grace period 1 hari sebelum dihapus untuk keperluan
 	// audit log jika diperlukan di masa depan.
@@ -31,6 +34,7 @@ type Querier interface {
 	// Hapus user yang belum verifikasi email dan sudah lewat 2 hari sejak register.
 	// ON DELETE CASCADE di tabel sessions & notes otomatis ikut membersihkan data terkait.
 	DeleteUnverifiedUsers(ctx context.Context) (int64, error)
+	GetAttachmentByID(ctx context.Context, id string) (NoteAttachment, error)
 	GetNote(ctx context.Context, id string) (Note, error)
 	GetSessionByTokenHash(ctx context.Context, tokenHash string) (Session, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
@@ -42,6 +46,7 @@ type Querier interface {
 	// Aman langsung link (tanpa nunggu verifikasi) karena email di sini
 	// sudah dibuktikan kepemilikannya oleh Google sendiri.
 	LinkGoogleID(ctx context.Context, arg LinkGoogleIDParams) error
+	ListAttachmentsByNote(ctx context.Context, noteID string) ([]NoteAttachment, error)
 	ListNotesByUser(ctx context.Context, arg ListNotesByUserParams) ([]ListNotesByUserRow, error)
 	MarkEmailVerified(ctx context.Context, id string) error
 	// Dipanggil setelah token merge terverifikasi: password pending dipindah
@@ -49,6 +54,7 @@ type Querier interface {
 	MergePendingPassword(ctx context.Context, id string) error
 	RevokeSession(ctx context.Context, id string) error
 	RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error
+	SetAvatar(ctx context.Context, arg SetAvatarParams) error
 	// Simpan password "menunggu" ketika ada yang register pakai email yang
 	// sudah terdaftar sebagai akun Google-only. Password baru aktif setelah
 	// link verifikasi di-klik (lihat MergePendingPassword).

@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS users (
     id                            VARCHAR(21) PRIMARY KEY,
     email                         VARCHAR(255) NOT NULL UNIQUE,
     password_hash                 TEXT NOT NULL DEFAULT '',
+    avatar_url                    TEXT,
+    avatar_source                 VARCHAR(20) NOT NULL DEFAULT 'none', -- 'none' | 'google' | 'upload'
     -- Email verification
     email_verified                BOOLEAN NOT NULL DEFAULT false,
     verification_token_hash       VARCHAR(64),
@@ -64,3 +66,22 @@ COMMENT ON COLUMN notes.mode IS 'public: plaintext, private: nonce||ciphertext A
 COMMENT ON COLUMN notes.content IS 'plaintext for public, nonce||ciphertext for private';
 COMMENT ON COLUMN notes.salt IS '16 byte random salt for private mode, empty for public';
 COMMENT ON COLUMN notes.user_id IS 'Pemilik note. List/Update/Delete hanya boleh oleh pemilik; Get/Unlock via share link tetap terbuka untuk siapapun.';
+
+CREATE TABLE IF NOT EXISTS note_attachments (
+    id           VARCHAR(21) PRIMARY KEY,
+    note_id      VARCHAR(21) NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+    r2_key       TEXT NOT NULL,
+    url          TEXT NOT NULL,
+    content_type VARCHAR(50) NOT NULL,
+    file_size    BIGINT NOT NULL,
+    kind         VARCHAR(10) NOT NULL CHECK (kind IN ('image', 'video')),
+    encrypted    BOOLEAN NOT NULL DEFAULT false,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- ============================================================
+-- TABEL note_attachments
+-- ============================================================
+CREATE INDEX IF NOT EXISTS idx_note_attachments_note_id ON note_attachments (note_id);
+
+COMMENT ON COLUMN note_attachments.encrypted IS 'true jika note pemiliknya mode private — content_type & file_size di sini merujuk ke file ASLI (sebelum dienkripsi), bukan blob terenkripsi di R2';
+COMMENT ON COLUMN note_attachments.r2_key IS 'key object di R2. Untuk attachment private, isinya adalah nonce||ciphertext AES-GCM (application/octet-stream)';

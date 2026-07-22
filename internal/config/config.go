@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -16,23 +17,33 @@ type Config struct {
 	JWTSecret       string
 	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
-	// IsProd mengontrol behavior yang berbeda antara development dan production:
-	// - Cookie Secure flag (true di production = HTTPS only)
-	// - Log format (JSON di production, text di development)
-	IsProd bool
-	// Resend API untuk email verifikasi
-	ResendAPIKey              string
-	FromEmail                 string
-	BaseURL                   string
+	IsProd          bool
+
+	ResendAPIKey string
+	FromEmail    string
+	BaseURL      string
+
 	GoogleClientID            string
 	GoogleClientSecret        string
 	GoogleRedirectURL         string
 	GoogleFrontendRedirectURL string
+
+	// Cloudflare R2
+	R2AccountID       string
+	R2AccessKeyID     string
+	R2SecretAccessKey string
+	R2BucketName      string
+	R2PublicBaseURL   string
+	PresignTTL        time.Duration
+
+	// Limit ukuran file, dalam byte (diturunkan dari env dalam MB)
+	MaxAvatarSize         int64
+	MaxImageAttachSize    int64
+	MaxVideoAttachSize    int64
+	MaxAttachmentsPerNote int
 }
 
-// Load membaca file .env (jika ada) lalu memvalidasi environment variable wajib.
 func Load() (*Config, error) {
-	// Abaikan error jika file .env tidak ada (env var di-set langsung di production)
 	_ = godotenv.Load()
 
 	dbURL := os.Getenv("DATABASE_URL")
@@ -44,7 +55,6 @@ func Load() (*Config, error) {
 	if jwtSecret == "" {
 		return nil, fmt.Errorf("environment variable JWT_SECRET wajib di-set")
 	}
-
 	if len(jwtSecret) < 32 {
 		return nil, fmt.Errorf("JWT_SECRET minimal 32 karakter untuk keamanan yang memadai")
 	}
@@ -62,7 +72,7 @@ func Load() (*Config, error) {
 	}
 	fromEmail := os.Getenv("FROM_EMAIL")
 	if fromEmail == "" {
-		fromEmail = "onboarding@resend.dev" // default sandbox Resend
+		fromEmail = "onboarding@resend.dev"
 	}
 	baseURL := os.Getenv("BASE_URL")
 	if baseURL == "" {
@@ -78,6 +88,21 @@ func Load() (*Config, error) {
 	if googleFrontendRedirectURL == "" {
 		googleFrontendRedirectURL = baseURL
 	}
+
+	// --- R2 ---
+	r2AccountID := os.Getenv("R2_ACCOUNT_ID")
+	r2AccessKeyID := os.Getenv("R2_ACCESS_KEY_ID")
+	r2SecretAccessKey := os.Getenv("R2_SECRET_ACCESS_KEY")
+	r2BucketName := os.Getenv("R2_BUCKET_NAME")
+	r2PublicBaseURL := os.Getenv("R2_PUBLIC_BASE_URL")
+
+	presignMinutes := envInt("PRESIGN_TTL_MINUTES", 10)
+
+	maxAvatarMB := envInt("MAX_AVATAR_SIZE_MB", 5)
+	maxImageMB := envInt("MAX_IMAGE_ATTACHMENT_SIZE_MB", 10)
+	maxVideoMB := envInt("MAX_VIDEO_ATTACHMENT_SIZE_MB", 50)
+	maxAttachments := envInt("MAX_ATTACHMENTS_PER_NOTE", 10)
+
 	return &Config{
 		DatabaseURL:               dbURL,
 		Port:                      port,
@@ -92,5 +117,34 @@ func Load() (*Config, error) {
 		GoogleClientSecret:        googleClientSecret,
 		GoogleRedirectURL:         googleRedirectURL,
 		GoogleFrontendRedirectURL: googleFrontendRedirectURL,
+
+		R2AccountID:       r2AccountID,
+		R2AccessKeyID:     r2AccessKeyID,
+		R2SecretAccessKey: r2SecretAccessKey,
+		R2BucketName:      r2BucketName,
+		R2PublicBaseURL:   r2PublicBaseURL,
+		PresignTTL:        time.Duration(presignMinutes) * time.Minute,
+
+		MaxAvatarSize:         int64(maxAvatarMB) * 1024 * 1024,
+		MaxImageAttachSize:    int64(maxImageMB) * 1024 * 1024,
+		MaxVideoAttachSize:    int64(maxVideoMB) * 1024 * 1024,
+		MaxAttachmentsPerNote: maxAttachments,
 	}, nil
+}
+
+// R2Enabled mengecek apakah kredensial R2 sudah dikonfigurasi.
+func (c *Config) R2Enabled() bool {
+	return c.R2AccountID != "" && c.R2AccessKeyID != "" && c.R2SecretAccessKey != "" && c.R2BucketName != ""
+}
+
+func envInt(key string, def int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return def
+	}
+	return n
 }
