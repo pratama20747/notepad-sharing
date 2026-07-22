@@ -12,6 +12,7 @@ Fitur tambahan:
 - **Multi-device** — refresh token disimpan di tabel sessions, bisa login dari banyak device sekaligus.
 - **Email verification** — verifikasi email wajib sebelum bisa membuat/mengelola note. Link verifikasi dikirim via [Resend](https://resend.com).
 - **Google OAuth** — login dengan akun Google. Pengguna password bisa menautkan akun Google, dan pengguna Google bisa menambahkan password (merge via email verification).
+- **Avatar & attachment** — upload foto profil user dan lampiran gambar/video ke note. File dienkripsi server-side (AES-256-GCM) untuk mode private. Disimpan di [Cloudflare R2](https://www.cloudflare.com/products/r2/).
 
 ## Stack
 
@@ -20,7 +21,9 @@ Fitur tambahan:
 - [Neon](https://neon.tech) — Postgres serverless
 - `golang.org/x/crypto` — bcrypt (hash password), argon2 (derive key enkripsi private note)
 - `github.com/golang-jwt/jwt/v5` — JWT access token
-- `crypto/aes` (GCM) — enkripsi mode private (standard library)
+- [Cloudflare R2](https://www.cloudflare.com/products/r2/) — object storage S3-compatible
+- [AWS SDK v2](https://aws.github.io/aws-sdk-go-v2/) — S3 client untuk R2
+- `crypto/aes` (GCM) — enkripsi note & attachment private (standard library)
 - `crypto/rand` — generate ID & token (standard library)
 - [Resend](https://resend.com) — kirim email verifikasi & merge password
 - `github.com/ulule/limiter/v3` — rate limiting middleware
@@ -31,18 +34,20 @@ Fitur tambahan:
 notepad-sharelink/
 ├── cmd/server/main.go          # entry point
 ├── internal/
-│   ├── authutil/                # JWT manager, hash password (bcrypt), refresh token, verification token
-│   ├── config/                  # load env var
+│   ├── authutil/                # JWT manager, hash password (bcrypt), refresh/verification token
+│   ├── config/                  # load env var (termasuk R2 & Google OAuth)
 │   ├── cryptoutil/              # derive key + encrypt/decrypt
+│   ├── fileutil/                # validasi magic bytes file
 │   ├── idgen/                   # generator ID slug link
+│   ├── oauthutil/               # Google OAuth config & helpers
+│   ├── storage/                 # Cloudflare R2 client (S3-compatible)
 │   ├── db/
-│   │   ├── migrations/          # schema SQL (dipakai sqlc & migrasi manual)
+│   │   ├── migrations/          # schema SQL
 │   │   ├── query/               # query SQL sumber untuk sqlc generate
 │   │   └── sqlc/                # hasil generate sqlc
-│   ├── oauthutil/               # Google OAuth config & helpers
-│   ├── service/                 # business logic (auth, notes, mailer, cleaners)
+│   ├── service/                 # business logic (auth, notes, avatar, attachment, mailer, cleaners)
 │   ├── handler/                 # HTTP handler (Gin)
-│   ├── middleware/              # auth middleware (JWT, rate limiter, verified)
+│   ├── middleware/              # auth middleware (JWT, rate limiter, verified, logger)
 │   └── router/                  # route registration
 ├── sqlc.yaml
 ├── go.mod
@@ -167,7 +172,27 @@ Redirect browser ke endpoint berikut (state disimpan di short-lived cookie untuk
 curl -v -X GET localhost:8080/api/auth/google/login
 ```
 
-Setelah sukses, browser di-redirect ke `GOOGLE_FRONTEND_REDIRECT_URL` dengan cookie refresh_token ter-set.
+Setelah sukses, browser di-redirect ke `GOOGLE_FRONTEND_REDIRECT_URL` dengan cookie refresh_token ter-set. Foto profil Google otomatis di-mirror ke R2.
+
+#### Profile (GET /api/auth/me — butuh login)
+
+```bash
+curl localhost:8080/api/auth/me \
+  -H "Authorization: Bearer <access_token>"
+```
+
+Response:
+```json
+{
+  "id": "abc123",
+  "email": "user@example.com",
+  "email_verified": true,
+  "avatar_url": "https://r2.example.com/avatars/abc123/...",
+  "avatar_source": "google",
+  "has_password": true,
+  "has_google": true
+}
+```
 
 #### Refresh token
 
@@ -257,14 +282,98 @@ curl -X POST localhost:8080/api/auth/logout-mobile \
 | Access token (JWT) | 15 menit | Tidak | HMAC-SHA256 (secret server) |
 | Refresh token | 30 hari | Hash SHA-256 di tabel `sessions` | SHA-256 (token random 32 byte) |
 
+## Avatar (foto profil)
+
+Prefix `/api/users` — semua endpoint butuh `Authorization: Bearer <token>`. Tidak perlu verifikasi email.
+
+### Presign upload avatar
+
+```bash
+curl -X POST localhost:8080/api/users/avatar/presign \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{"content_type":"image/jpeg","file_size":500000}'
+```
+
+Response:
+```json
+{
+  "upload_url": "https://r2.example.com/...?X-Amz-Signature=...",
+  "key": "avatars/user123/1234567890-abc.jpg"
+}
+```
+
+Client PUT langsung ke `upload_url`, lalu konfirmasi.
+
+### Confirm upload avatar
+
+```bash
+curl -X POST localhost:8080/api/users/avatar/confirm \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{"key":"avatars/user123/1234567890-abc.jpg"}'
+```
+
+Response:
+```json
+{
+  "avatar_url": "https://r2.example.com/avatars/user123/1234567890-abc.jpg"
+}
+```
+
+Backend memvalidasi ulang ukuran & magic bytes sebelum menyimpan.
+
+## Attachment (lampiran file)
+
+Endpoint attachment di prefix `/api/notes`:
+
+| Method | Path | Auth | Deskripsi |
+|---|---|---|---|
+| GET | `/:id/attachments` | Publik | Daftar attachment note |
+| POST | `/attachments/:attachmentId/download` | Publik | Download attachment private (butuh password) |
+| POST | `/:id/attachments/presign` | Login+Verified | Presigned URL upload (note public) |
+| POST | `/:id/attachments/confirm` | Login+Verified | Konfirmasi upload selesai |
+| POST | `/:id/attachments/private` | Login+Verified | Upload attachment private (multipart) |
+| DELETE | `/attachments/:attachmentId` | Login+Verified | Hapus attachment |
+
+### Flow Public (presigned URL)
+
+```bash
+# 1. Presign
+curl -X POST localhost:8080/api/notes/<noteId>/attachments/presign \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{"content_type":"image/png","file_size":2000000,"kind":"image"}'
+
+# 2. Client PUT langsung ke upload_url (tidak lewat backend)
+
+# 3. Confirm
+curl -X POST localhost:8080/api/notes/<noteId>/attachments/confirm \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{"key":"notes/<noteId>/images/...png","kind":"image"}'
+```
+
+### Flow Private (server-side encrypted)
+
+```bash
+# Upload
+curl -X POST localhost:8080/api/notes/<noteId>/attachments/private \
+  -H "Authorization: Bearer <access_token>" \
+  -F "file=@foto.jpg" \
+  -F "kind=image" \
+  -F "password=secret123"
+
+# Download (publik — siapapun dengan password)
+curl -X POST localhost:8080/api/notes/attachments/<attachmentId>/download \
+  -H "Content-Type: application/json" \
+  -d '{"password":"secret123"}' \
+  --output foto.jpg
+```
+
 ## API Notes
 
-Semua endpoint di bawah prefix `/api/notes` membutuhkan **Authorization header** kecuali:
-
-- `GET /api/notes/:id` — share link publik
-- `POST /api/notes/:id/unlock` — unlock via password (publik)
-
-Selain itu, user **harus sudah verifikasi email** untuk bisa create/update/delete/list notes (dicek oleh `RequireVerified` middleware).
+Semua endpoint di bawah prefix `/api/notes` membutuhkan **Authorization header** kecuali endpoint publik (GET note, unlock, list attachment, download private). User **harus sudah verifikasi email** untuk create/update/delete/list notes.
 
 ### Create note
 
@@ -339,11 +448,14 @@ Lihat `.env.example` untuk daftar lengkap.
 | `DATABASE_URL` | ✅ | Connection string Neon atau PostgreSQL |
 | `JWT_SECRET` | ✅ | Secret key JWT (min 32 karakter) |
 | `RESEND_API_KEY` | ✅ | API key dari Resend.com |
-| `GOOGLE_CLIENT_ID` | ❌ (untuk Google OAuth) | Dari Google Cloud Console |
-| `GOOGLE_CLIENT_SECRET` | ❌ (untuk Google OAuth) | Dari Google Cloud Console |
+| `R2_ACCOUNT_ID` | Untuk R2 | Account ID Cloudflare R2 |
+| `R2_ACCESS_KEY_ID` | Untuk R2 | S3-compatible access key |
+| `R2_SECRET_ACCESS_KEY` | Untuk R2 | S3-compatible secret key |
+| `R2_BUCKET_NAME` | Untuk R2 | Nama bucket R2 |
+| `R2_PUBLIC_BASE_URL` | Untuk R2 | Public base URL bucket |
+| `GOOGLE_CLIENT_ID` | ❌ (Google OAuth) | Dari Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | ❌ (Google OAuth) | Dari Google Cloud Console |
 | `PORT` | ❌ | Default `8080` |
-| `FROM_EMAIL` | ❌ | Default `onboarding@resend.dev` |
-| `BASE_URL` | ❌ | Default `http://localhost:{PORT}` |
 | `APP_ENV` | ❌ | Isi `production` untuk JSON logging & cookie secure |
 
 ## Catatan desain & keamanan
@@ -352,123 +464,16 @@ Lihat `.env.example` untuk daftar lengkap.
 - **Salt & key derivation (private note)**: tiap note private punya salt unik (16 byte), key diturunkan pakai Argon2id.
 - **Tiga algoritma hash berbeda**: bcrypt (password login), SHA-256 (refresh & verification token), Argon2id (enkripsi note).
 - **Email verification**: user baru harus verifikasi email sebelum bisa mengelola note. Unverified users otomatis dihapus setelah 2 hari.
-- **Google OAuth merge**: pengguna Google bisa tambah password via link email (membuktikan kepemilikan inbox). Reverse-nya (pengguna password tautkan Google ID) langsung aman karena Google sudah buktikan email.
+- **Google OAuth merge**: pengguna Google bisa tambah password via link email (membuktikan kepemilikan inbox). Reverse-nya (pengguna password tautkan Google ID) langsung aman.
+- **Avatar mirror Google**: foto profil di-download dari Google lalu di-upload ke R2 (fire-and-forget). Tidak menimpa avatar upload manual.
+- **Attachment private**: dienkripsi server-side (AES-256-GCM) dengan key yang sama dengan content note. Metadata tetap publik via List.
+- **Validasi file**: magic bytes via `http.DetectContentType`, ukuran via R2 HeadObject, path key diverifikasi per user/note.
 - **Rate limiting**: endpoint auth dilindungi rate limiter (10 req/menit per IP).
-- **Background cleaners**: session expired/revoked, unverified users, dan pending password merge dibersihkan periodik oleh goroutine latar.
+- **Background cleaners**: session expired/revoked, unverified users, pending password merge dibersihkan periodik.
 - **Structured logging**: `log/slog` (JSON di production, text di development).
-- **Graceful shutdown**: server menunggu request selesai (timeout 10 detik) sebelum berhenti.
-- **Refresh token via HttpOnly cookie**: aman dari XSS untuk client web. Mobile pakai endpoint body-based.
-- **CORS**: development allow all origins; production allowlist terbatas dengan credentials.
-- **404 handler**: return JSON, bukan serve index.html.
+- **Graceful shutdown**: server menunggu request selesai (timeout 10 detik).
+- **Refresh token via HttpOnly cookie**: aman XSS. Mobile pakai endpoint body-based.
+- **CORS**: development allow all; production allowlist terbatas.
+- **404 handler**: return JSON.
 - **Ini MVP/prototype**: belum ada TTL/auto-expire note.
-```
 
-## 3. **Docker Compose - Tambahkan Volume untuk Init**
-
-```yaml
-version: "3.8"
-
-services:
-  postgres:
-    image: postgres:16.3-alpine
-    container_name: postgres_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mydatabase
-      PGDATA: /var/lib/postgresql/data/pgdata
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - postgres_backup:/backup
-      # Auto-run migration saat container pertama kali dibuat
-      - ./internal/db/migrations:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U myuser -d mydatabase"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  postgres_data:
-    driver: local
-  postgres_backup:
-    driver: local
-```
-
-## 4. **Buat `.env.example` yang Hilang**
-
-Buat file `.env.example`:
-
-```bash
-# Database
-DATABASE_URL=postgres://myuser:mypassword@localhost:5432/mydatabase?sslmode=disable
-
-# JWT
-JWT_SECRET=your-secret-key-at-least-32-characters-long-here
-
-# Server
-PORT=8080
-APP_ENV=development
-
-# Resend (Email)
-RESEND_API_KEY=re_xxxxxxxxxxxx
-FROM_EMAIL=onboarding@resend.dev
-BASE_URL=http://localhost:8080
-
-# Google OAuth (Opsional)
-GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxxxxxx
-GOOGLE_REDIRECT_URL=http://localhost:8080/api/auth/google/callback
-GOOGLE_FRONTEND_REDIRECT_URL=http://localhost:3000
-```
-
-## 5. **Update `.gitignore`**
-
-Pastikan file `.gitignore` ada:
-
-```gitignore
-# Binaries
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-notepad-sharelink
-
-# Test binary
-*.test
-
-# Output of the go coverage tool
-*.out
-
-# Dependency directories
-vendor/
-
-# Go workspace file
-go.work
-
-# Environment variables
-.env
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Database
-*.db
-*.sqlite
-
-# Docker volumes
-postgres_data/
-postgres_backup/
-```
