@@ -27,6 +27,7 @@ type Config struct {
 	GoogleClientSecret        string
 	GoogleRedirectURL         string
 	GoogleFrontendRedirectURL string
+	GoogleTimeout             time.Duration
 
 	// Cloudflare R2
 	R2AccountID       string
@@ -81,6 +82,7 @@ func Load() (*Config, error) {
 	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
 	googleClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
 	googleRedirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
+
 	if googleRedirectURL == "" {
 		googleRedirectURL = baseURL + "/api/auth/google/callback"
 	}
@@ -88,6 +90,7 @@ func Load() (*Config, error) {
 	if googleFrontendRedirectURL == "" {
 		googleFrontendRedirectURL = baseURL
 	}
+	googleTimeout := envDuration("GOOGLE_TIMEOUT", 5*time.Second)
 
 	// --- R2 ---
 	r2AccountID := os.Getenv("R2_ACCOUNT_ID")
@@ -117,6 +120,7 @@ func Load() (*Config, error) {
 		GoogleClientSecret:        googleClientSecret,
 		GoogleRedirectURL:         googleRedirectURL,
 		GoogleFrontendRedirectURL: googleFrontendRedirectURL,
+		GoogleTimeout:             googleTimeout,
 
 		R2AccountID:       r2AccountID,
 		R2AccessKeyID:     r2AccessKeyID,
@@ -147,4 +151,16 @@ func envInt(key string, def int) int {
 		return def
 	}
 	return n
+}
+
+func envDuration(key string, def time.Duration) time.Duration {
+	v := os.Getenv(key)
+	if v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			return def
+		}
+		return d
+	}
+	return def
 }

@@ -62,13 +62,16 @@ func main() {
 	jwtManager := authutil.NewJWTManager(cfg.JWTSecret, cfg.AccessTokenTTL)
 
 	mailer := service.NewMailer(cfg.ResendAPIKey, cfg.FromEmail, cfg.BaseURL)
-
-	googleCfg := &oauthutil.GoogleConfig{
-		ClientID:            cfg.GoogleClientID,
-		ClientSecret:        cfg.GoogleClientSecret,
-		RedirectURL:         cfg.GoogleRedirectURL,
-		FrontendRedirectURL: cfg.GoogleFrontendRedirectURL,
+	httpClient := &http.Client{
+		Timeout: cfg.GoogleTimeout,
 	}
+	googleCfg := oauthutil.NewGoogleConfig(
+		cfg.GoogleClientID,
+		cfg.GoogleClientSecret,
+		cfg.GoogleRedirectURL,
+		cfg.GoogleFrontendRedirectURL,
+		httpClient,
+	)
 
 	noteService := service.NewNoteService(queries)
 

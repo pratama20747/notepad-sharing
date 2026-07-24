@@ -23,6 +23,17 @@ type GoogleConfig struct {
 	ClientSecret        string
 	RedirectURL         string // URL callback backend, mis. https://api.domain.com/api/auth/google/callback
 	FrontendRedirectURL string // URL frontend tujuan setelah login sukses
+	HTTPClient          *http.Client
+}
+
+func NewGoogleConfig(clientID, clientSecret, redirectURL, frontendRedirectURL string, httpClient *http.Client) *GoogleConfig {
+	return &GoogleConfig{
+		ClientID:            clientID,
+		ClientSecret:        clientSecret,
+		RedirectURL:         redirectURL,
+		FrontendRedirectURL: frontendRedirectURL,
+		HTTPClient:          httpClient,
+	}
 }
 
 // Enabled mengecek apakah kredensial Google OAuth sudah dikonfigurasi.
@@ -65,7 +76,7 @@ func (g *GoogleConfig) ExchangeCode(ctx context.Context, code string) (*TokenRes
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := g.HTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +109,7 @@ func (g *GoogleConfig) GetUserInfo(ctx context.Context, accessToken string) (*Go
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := g.HTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

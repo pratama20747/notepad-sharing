@@ -29,27 +29,38 @@ func New(
 	r.GET("/health", healthCheck)
 
 	// Auth routes
-	authLimiter, _ := middleware.NewRateLimiter("10-M")
+	strictAuthLimiter, _ := middleware.NewRateLimiter("10-M")
+	LooseAuthLimiter, _ := middleware.NewRateLimiter("60-M")
+	meLimiter, _ := middleware.NewRateLimiter("50-M")
+	resendLimiter, _ := middleware.NewRateLimiter("10-M")
 	auth := r.Group("/api/auth")
-	auth.Use(authLimiter)
 	{
-		auth.POST("/register", authHandler.Register)
-		auth.POST("/login", authHandler.Login)
-		auth.POST("/refresh", authHandler.Refresh)
-		auth.POST("/logout", authHandler.Logout)
-		auth.GET("/verify-email", authHandler.VerifyEmail)
-		auth.POST("/login-mobile", authHandler.MobileLoginHandler)
-		auth.POST("/refresh-mobile", authHandler.MobileRefreshHandler)
-		auth.POST("/logout-mobile", authHandler.MobileLogoutHandler)
-		auth.GET("/google/login", authHandler.GoogleLoginRedirect)
-		auth.GET("/google/callback", authHandler.GoogleCallback)
-		auth.GET("/verify-merge-password", authHandler.VerifyMergePassword)
+		loginGroup := auth.Group("")
+		loginGroup.Use(strictAuthLimiter)
+		loginGroup.POST("/register", authHandler.Register)
+		loginGroup.POST("/login", authHandler.Login)
+		loginGroup.POST("/refresh", authHandler.Refresh)
+
+		looseGroup := auth.Group("")
+		looseGroup.Use(LooseAuthLimiter)
+		looseGroup.POST("/logout", authHandler.Logout)
+		looseGroup.GET("/verify-email", authHandler.VerifyEmail)
+		looseGroup.POST("/login-mobile", authHandler.MobileLoginHandler)
+		looseGroup.POST("/refresh-mobile", authHandler.MobileRefreshHandler)
+		looseGroup.POST("/logout-mobile", authHandler.MobileLogoutHandler)
+		looseGroup.GET("/google/login", authHandler.GoogleLoginRedirect)
+		looseGroup.GET("/google/callback", authHandler.GoogleCallback)
+		looseGroup.GET("/verify-merge-password", authHandler.VerifyMergePassword)
 
 		authedAuth := auth.Group("")
 		authedAuth.Use(middleware.RequireAuth(jwtManager))
+		meGroup := authedAuth.Group("")
+		meGroup.Use(meLimiter)
+		resendGroup := authedAuth.Group("")
+		resendGroup.Use(resendLimiter)
 		{
-			authedAuth.POST("/resend-verification", authHandler.ResendVerification)
-			authedAuth.GET("/me", authHandler.Me)
+			meGroup.GET("/me", authHandler.Me)
+			resendGroup.POST("/resend-verification", authHandler.ResendVerification)
 		}
 	}
 
